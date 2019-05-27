@@ -1,9 +1,9 @@
 Nebula
 =====
 
-Nebula is an open-source .NET Core data abstraction library backed by CosmosDb. It was architected to streamline the storage of domain entities in a way that promotes solid domain driven design, provides versioned append-only operations and integrates seamlessly into microservice archiectures.
+Nebula is an open-source .NET Core data abstraction library backed by Cosmos DB. It was architected to streamline the storage of domain entities in a way that promotes solid domain driven design, provides versioned append-only operations and integrates seamlessly into microservice archiectures.
 
-Nebula leverages the speed and scailability of CosmosDb while significantly reducing it's cost limitations by logically separating data across shared throughput allocation. This unlocks the benefits of CosmosDb to projects with lower budgets and simplifies CosmosDb service operational complexity where price is not a factor.
+Nebula leverages the speed and scailability of Cosmos DB while significantly reducing it's cost limitations by logically separating data across shared throughput allocation. This unlocks the benefits of Cosmos DB to projects with lower budgets and simplifies Cosmos DB service operational complexity where price is not a factor.
 
 ## Get started
 
