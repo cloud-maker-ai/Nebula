@@ -1,0 +1,31 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <AssemblyName>Nebula</AssemblyName>
+    <RootNamespace>Nebula</RootNamespace>
+    <PackageId>CloudMaker.Nebula</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>CloudMaker</Authors>
+    <Company>Cloud Maker</Company>
+    <Description>Nebula is a lightweight, fast and cost efficient .NET Core data abstraction library backed by CosmosDb.</Description>
+    <PackageTags>Cloud Maker;Azure;Cloud;Database;Data,NoSQL,CosmosDb</PackageTags>
+    <RepositoryUrl>https://github.com/cloud-maker-ai/Nebula</RepositoryUrl>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Azure.DocumentDB.Core" Version="2.2.2" />
+    <PackageReference Include="System.Collections.Immutable" Version="1.4.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="LICENSE">
+      <Pack>true</Pack>
+      <PackagePath>\</PackagePath>
+    </Content>
+  </ItemGroup>
+
+</Project>
