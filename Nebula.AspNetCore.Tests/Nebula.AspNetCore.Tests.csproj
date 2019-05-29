@@ -14,7 +14,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Nebula.AspNetCore\Nebula.AspNetCore.csproj" />
-    <ProjectReference Include="..\Nebula\Nebula.csproj" />
   </ItemGroup>
 
 </Project>
