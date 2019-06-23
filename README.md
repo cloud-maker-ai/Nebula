@@ -1,5 +1,7 @@
 ![alt text](Nebula.png "Nebula")
 
+![Build Status](https://certainsix.visualstudio.com/CloudMaker/_apis/build/status/OpenSource/Nebula-CI?branchName=master)
+
 Nebula
 =====
 
