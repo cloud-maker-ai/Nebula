@@ -1,3 +1,5 @@
+![Build Status](https://certainsix.visualstudio.com/CloudMaker/_apis/build/status/OpenSource/Nebula-CI?branchName=master)
+
 ![alt text](Nebula.png "Nebula")
 
 Nebula
