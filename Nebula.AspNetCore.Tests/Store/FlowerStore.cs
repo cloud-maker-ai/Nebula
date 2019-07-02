@@ -12,7 +12,9 @@ namespace Nebula.AspNetCore.Tests.Store
         private readonly DocumentStoreConfig _config;
         private readonly IVersionedDocumentStoreClient _client;
 
-        public FlowerStore(IDocumentDbAccessProvider dbAccessProvider) : base(dbAccessProvider, false)
+        public FlowerStore(
+            IDocumentDbAccessProvider dbAccessProvider,
+            IDocumentMetadataSource metadataSource) : base(dbAccessProvider, false)
         {
             var config = new DocumentStoreConfigBuilder("Flowers");
 
@@ -24,7 +26,7 @@ namespace Nebula.AspNetCore.Tests.Store
                 .Finish();
 
             _config = config.Finish();
-            _client = CreateStoreLogic(DbAccess, _config);
+            _client = CreateStoreLogic(DbAccess, _config, metadataSource);
 
             DbAccess.ConfigRegistry.RegisterStoreConfigSource(this);
         }
