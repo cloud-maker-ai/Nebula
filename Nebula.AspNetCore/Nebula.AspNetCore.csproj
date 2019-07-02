@@ -5,7 +5,7 @@
     <AssemblyName>Nebula.AspNetCore</AssemblyName>
     <RootNamespace>Nebula.AspNetCore</RootNamespace>
     <PackageId>CloudMaker.Nebula</PackageId>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
     <Authors>CloudMaker</Authors>
     <Company>Cloud Maker</Company>
     <Description>Nebula is a lightweight, fast and cost efficient .NET Core data abstraction library backed by CosmosDb.</Description>
@@ -17,7 +17,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.App" />
-    <PackageReference Include="CloudMaker.Nebula.Core" Version="1.0.0" />
+    <PackageReference Include="CloudMaker.Nebula.Core" Version="1.0.1" />
   </ItemGroup>
 
   <ItemGroup>

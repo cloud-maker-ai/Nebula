@@ -30,7 +30,11 @@ namespace Nebula.AspNetCore
             services.TryAdd(ServiceDescriptor.Singleton<IDocumentDbAccessFactory, StandardDbAccessFactory>(
                 provider => new StandardDbAccessFactory(serviceName, config)));
 
-            services.TryAdd(ServiceDescriptor.Singleton<IDocumentDbAccessProvider, DocumentDbAccessProvider>());
+            services.TryAddSingleton<IDocumentDbAccessProvider, DocumentDbAccessProvider>();
+
+            services.AddHttpContextAccessor();
+
+            services.TryAddScoped<IDocumentMetadataSource, DocumentMetadataSource>();
 
             return services;
         }
@@ -78,7 +82,11 @@ namespace Nebula.AspNetCore
             services.TryAdd(ServiceDescriptor.Singleton<IDocumentDbAccessFactory, ConfigDbAccessFactory>(
                 provider => new ConfigDbAccessFactory(serviceName, provider.GetRequiredService<IOptions<NebulaConfig>>())));
 
-            services.TryAdd(ServiceDescriptor.Singleton<IDocumentDbAccessProvider, DocumentDbAccessProvider>());
+            services.TryAddSingleton<IDocumentDbAccessProvider, DocumentDbAccessProvider>();
+
+            services.AddHttpContextAccessor();
+
+            services.TryAddScoped<IDocumentMetadataSource, DocumentMetadataSource>();
 
             return services;
         }
