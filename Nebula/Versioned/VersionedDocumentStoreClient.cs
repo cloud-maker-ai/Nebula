@@ -21,9 +21,26 @@ namespace Nebula.Versioned
         /// <param name="dbAccess">The db access interface.</param>
         /// <param name="config">The store config.</param>
         public VersionedDocumentStoreClient(DocumentDbAccess dbAccess, DocumentStoreConfig config)
-            : base(dbAccess, config, new[] { typeof(CreateDocumentStoredProcedure) })
+            : this(dbAccess, config, null)
         {
         }
+
+        /// <summary>
+        /// Initialises a new instance of the <see cref="VersionedDocumentStoreClient"/> class.
+        /// </summary>
+        /// <param name="dbAccess">The db access interface.</param>
+        /// <param name="config">The store config.</param>
+        /// <param name="metadataSource">The document metadata source.</param>
+        public VersionedDocumentStoreClient(
+            DocumentDbAccess dbAccess,
+            DocumentStoreConfig config,
+            IDocumentMetadataSource metadataSource)
+            : base(dbAccess, config, new[] { typeof(CreateDocumentStoredProcedure) })
+        {
+            MetadataSource = metadataSource ?? new NullDocumentMetadataSource();
+        }
+
+        private IDocumentMetadataSource MetadataSource { get; }
 
         /// <inheritdoc />
         public async Task<VersionedDocumentUpsertResult<TDocument>> UpsertDocumentAsync<TDocument>(
@@ -56,6 +73,7 @@ namespace Nebula.Versioned
             dbRecord.Service = DbAccess.ConfigManager.ServiceName;
             dbRecord.PartitionKey = mapping.PartitionKeyMapper(document);
             dbRecord.Version = version;
+            dbRecord.Actor = GetActorId();
 
             SetDocumentContent(dbRecord, document, mapping);
 
@@ -108,6 +126,7 @@ namespace Nebula.Versioned
             dbRecord.PartitionKey = existingDocument.PartitionKey;
             dbRecord.Version = version;
             dbRecord.Deleted = true;
+            dbRecord.Actor = GetActorId();
 
             SetDocumentContentFromExisting(dbRecord, existingDocument, mapping);
 
@@ -180,7 +199,7 @@ namespace Nebula.Versioned
             foreach (var document in ordered)
             {
                 var metadata = new VersionedDocumentMetadata(
-                    document.Version, document.Deleted, createdTime, document.Timestamp);
+                    document.Version, document.Deleted, createdTime, document.Timestamp, document.Actor);
 
                 records.Add(metadata);
             }
@@ -226,7 +245,7 @@ namespace Nebula.Versioned
                     continue;
                 }
 
-                var metadata = new VersionedDocumentMetadata(doc.Version, doc.Deleted, createdTime, modifiedTime);
+                var metadata = new VersionedDocumentMetadata(doc.Version, doc.Deleted, createdTime, modifiedTime, doc.Actor);
 
                 TDocument content;
                 DocumentReadFailureDetails failure;
@@ -315,7 +334,7 @@ namespace Nebula.Versioned
                     continue;
                 }
 
-                var metadata = new VersionedDocumentMetadata(doc.Version, doc.Deleted, createdTime, modifiedTime);
+                var metadata = new VersionedDocumentMetadata(doc.Version, doc.Deleted, createdTime, modifiedTime, doc.Actor);
 
                 TDocument content;
                 DocumentReadFailureDetails failure;
@@ -362,7 +381,7 @@ namespace Nebula.Versioned
                 TDocument content;
                 if (TryGetDocumentContent(doc, mapping, out content, out _))
                 {
-                    var metadata = new VersionedDocumentMetadata(doc.Version, doc.Deleted, createdTime, modifiedTime);
+                    var metadata = new VersionedDocumentMetadata(doc.Version, doc.Deleted, createdTime, modifiedTime, doc.Actor);
                     result.Add(new VersionedDocumentWithMetadata<TDocument>(metadata, content));
                 }
             }
@@ -426,7 +445,7 @@ namespace Nebula.Versioned
                 return null;
             }
 
-            var metadata = new VersionedDocumentMetadata(document.Version, document.Deleted, createdTime, modifiedTime);
+            var metadata = new VersionedDocumentMetadata(document.Version, document.Deleted, createdTime, modifiedTime, document.Actor);
 
             TDocument content;
             DocumentReadFailureDetails failure;
@@ -631,6 +650,18 @@ namespace Nebula.Versioned
             }
 
             return querySpec;
+        }
+
+        private string GetActorId()
+        {
+            try
+            {
+                return MetadataSource.GetActorId();
+            }
+            catch (Exception e)
+            {
+                throw new NebulaStoreException("Document metadata source threw an exception while attempting to retrieve the actor id", e);
+            }
         }
 
         internal class VersionedDbDocument : DbDocument

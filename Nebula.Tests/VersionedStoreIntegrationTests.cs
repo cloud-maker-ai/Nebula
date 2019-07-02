@@ -475,8 +475,6 @@ namespace Nebula.Tests
             Assert.Empty(r4);
         }
 
-        // FIXME: Joel: Add versioned integration test that stores some docs. Deletes some, stores more, deletes, fetches older versions. Metadata.
-
         [Fact]
         [Trait("Category", "Integration")]
         public async void TestMetadataQueries()
@@ -588,6 +586,42 @@ namespace Nebula.Tests
             Assert.Equal("Green", r5.Document.Colour);
         }
 
+        [Fact]
+        [Trait("Category", "Integration")]
+        public async void TestCustomDocumentMetadata()
+        {
+            var configManager = new ServiceDbConfigManager("TestService");
+            var dbAccess = await CreateDbAccess(configManager);
+            var dbAccessProvider = new TestDocumentDbAccessProvider(dbAccess);
+            var metadataSource = new TestDocumentMetadataSource("User1");
+
+            var fruitStore = new FruitStore(dbAccessProvider, metadataSource);
+
+            var bartlett = new Pear
+            {
+                Id = Guid.NewGuid(),
+                Colour = "Red"
+            };
+
+            await fruitStore.UpsertPear(bartlett);
+
+            metadataSource.ActorId = "User2";
+            await fruitStore.UpsertPear(bartlett);
+
+            metadataSource.ActorId = "User3";
+            await fruitStore.DeletePearById(bartlett.Id);
+
+            var r1 = await fruitStore.GetPearById(bartlett.Id, 1);
+            Assert.Equal("User1", r1.Metadata.ActorId);
+
+            var r2 = await fruitStore.GetPearById(bartlett.Id, 2);
+            Assert.Equal("User2", r2.Metadata.ActorId);
+
+            var r3 = await fruitStore.GetPearById(bartlett.Id, 3);
+            Assert.True(r3.Metadata.IsDeleted);
+            Assert.Equal("User3", r3.Metadata.ActorId);
+        }
+
         private async Task SeedCounterAsync(Guid id, FruitStore fruitStore, bool shouldSleep = false)
         {
             var versionedApple = await fruitStore.GetVersionedAppleById(id);
@@ -661,7 +695,13 @@ namespace Nebula.Tests
             private readonly DocumentStoreConfig _config;
             private readonly IVersionedDocumentStoreClient _client;
 
-            public FruitStore(IDocumentDbAccessProvider dbAccessProvider) : base(dbAccessProvider, false)
+            public FruitStore(IDocumentDbAccessProvider dbAccessProvider)
+                : this(dbAccessProvider, null)
+            {
+            }
+
+            public FruitStore(IDocumentDbAccessProvider dbAccessProvider, IDocumentMetadataSource metadataSource)
+                : base(dbAccessProvider, false)
             {
                 var config = new DocumentStoreConfigBuilder("Fruit");
 
@@ -679,7 +719,7 @@ namespace Nebula.Tests
                     .Finish();
 
                 _config = config.Finish();
-                _client = CreateStoreLogic(DbAccess, _config);
+                _client = CreateStoreLogic(DbAccess, _config, metadataSource);
 
                 DbAccess.ConfigRegistry.RegisterStoreConfigSource(this);
             }
@@ -873,6 +913,26 @@ namespace Nebula.Tests
         private class EmailAttachment
         {
             public string Data { get; set; }
+        }
+
+        private class TestDocumentMetadataSource : IDocumentMetadataSource
+        {
+            private string _actorId;
+
+            public TestDocumentMetadataSource(string actorId)
+            {
+                _actorId = actorId;
+            }
+
+            public string ActorId
+            {
+                set { _actorId = value; }
+            }
+
+            public string GetActorId()
+            {
+                return _actorId;
+            }
         }
     }
 }

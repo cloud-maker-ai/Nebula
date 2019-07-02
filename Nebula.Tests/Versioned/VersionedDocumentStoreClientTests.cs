@@ -29,11 +29,38 @@ namespace Nebula.Tests.Versioned
             var storeDoc1 = CreateDoc();
             SetDocContent(storeDoc1, doc, storeConfig, dbAccess, storeMapping);
 
-            DoDeleteTest(
+            await DoDeleteTest(
                 client,
                 dbAccess,
+                null,
                 new[] { storeDoc1 },
                 doc, 2, storeDoc1.Version, true);
+        }
+
+        [Fact]
+        public async Task DeleteDocumentAsyncWithActorId()
+        {
+            var client = Substitute.For<IDocumentClient>();
+
+            var dbAccess = await CreateDbAccess(client);
+            CreateTestStore(out var storeConfig, out var storeMapping);
+
+            var actorId = "TestActor";
+            var metadataSource = Substitute.For<IDocumentMetadataSource>();
+            metadataSource.GetActorId().Returns(actorId);
+
+            // Create an existing document so that this a delete of an existing document.
+            var doc = CreateTestDoc1();
+            var storeDoc1 = CreateDoc();
+            SetDocContent(storeDoc1, doc, storeConfig, dbAccess, storeMapping);
+
+            await DoDeleteTest(
+                client,
+                dbAccess,
+                metadataSource,
+                new[] { storeDoc1 },
+                doc, 2, storeDoc1.Version, true,
+                actorId);
         }
 
         [Fact]
@@ -42,7 +69,7 @@ namespace Nebula.Tests.Versioned
             var client = Substitute.For<IDocumentClient>();
             var dbAccess = await CreateDbAccess(client);
 
-            DoDeleteNoChangeTest(client, dbAccess, null, "123");
+            await DoDeleteNoChangeTest(client, dbAccess, null, "123");
         }
 
         [Fact]
@@ -60,7 +87,7 @@ namespace Nebula.Tests.Versioned
             storeDoc1.Deleted = true;
             storeDoc1.Version = 2;
 
-            DoDeleteNoChangeTest(client, dbAccess, new[] { storeDoc1 }, doc.Id);
+            await DoDeleteNoChangeTest(client, dbAccess, new[] { storeDoc1 }, doc.Id);
         }
 
         [Fact]
@@ -73,7 +100,7 @@ namespace Nebula.Tests.Versioned
 
             var dbAccess = await CreateDbAccess(client, queryPolicy);
 
-            DoDeleteFailureTest<NebulaStoreException>(client, dbAccess, null, "123", 0, "Failed to create document query");
+            await DoDeleteFailureTest<NebulaStoreException>(client, dbAccess, null, "123", 0, "Failed to create document query");
         }
 
         [Fact]
@@ -87,10 +114,14 @@ namespace Nebula.Tests.Versioned
             var storeDoc1 = CreateDoc();
             SetDocContent(storeDoc1, doc1, storeConfig, dbAccess, storeMapping);
 
-            client.CreateDocumentQuery<VersionedDocumentStoreClient.VersionedDbDocument>(Arg.Any<Uri>(), Arg.Any<string>(), Arg.Any<FeedOptions>())
+            client.CreateDocumentQuery<VersionedDocumentStoreClient.VersionedDbDocument>(
+                    Arg.Any<Uri>(),
+                    Arg.Any<SqlQuerySpec>(),
+                    Arg.Any<FeedOptions>())
                 .Returns(CreateQueryResult(CreateFailingQueryEnumerable()));
 
-            DoDeleteFailureTest<NebulaStoreException>(client, dbAccess, null, doc1.Id, storeDoc1.Version, "Failed to execute query");
+            await DoDeleteFailureTest<NebulaStoreException>(
+                client, dbAccess, null, doc1.Id, storeDoc1.Version, "Failed to execute query");
         }
 
         [Fact]
@@ -106,7 +137,14 @@ namespace Nebula.Tests.Versioned
 
             client.CreateDocumentAsync(Arg.Any<Uri>(), Arg.Any<object>()).Throws<Exception>();
 
-            DoDeleteFailureTest<NebulaStoreException>(client, dbAccess, new[] { storeDoc1 }, doc1.Id, storeDoc1.Version, "Failed to write document");
+            client.ExecuteStoredProcedureAsync<dynamic>(
+                    Arg.Any<Uri>(),
+                    Arg.Any<RequestOptions>(),
+                    Arg.Any<dynamic[]>())
+                .Throws<Exception>();
+
+            await DoDeleteFailureTest<NebulaStoreException>(
+                client, dbAccess, new[] { storeDoc1 }, doc1.Id, storeDoc1.Version, "Failed to write document");
         }
 
         [Fact]
@@ -120,7 +158,8 @@ namespace Nebula.Tests.Versioned
             var storeDoc1 = CreateDoc();
             SetDocContent(storeDoc1, doc1, storeConfig, dbAccess, storeMapping);
 
-            DoDeleteFailureTest<NebulaStoreConcurrencyException>(client, dbAccess, new[] { storeDoc1 }, doc1.Id, 0, "Existing document version does not match the specified check version");
+            await DoDeleteFailureTest<NebulaStoreConcurrencyException>(
+                client, dbAccess, new[] { storeDoc1 }, doc1.Id, 0, "Existing document version does not match the specified check version");
         }
 
         [Fact]
@@ -138,7 +177,8 @@ namespace Nebula.Tests.Versioned
             storeDoc1.Version = 2;
             SetDocContent(storeDoc1, doc, storeConfig, dbAccess, storeMapping);
 
-            DoDeleteFailureTest<NebulaStoreConcurrencyException>(client, dbAccess, new[] { storeDoc1 }, doc.Id, storeDoc1.Version - 1, "Existing document version does not match the specified check version");
+            await DoDeleteFailureTest<NebulaStoreConcurrencyException>(
+                client, dbAccess, new[] { storeDoc1 }, doc.Id, storeDoc1.Version - 1, "Existing document version does not match the specified check version");
         }
 
         [Fact]
@@ -154,9 +194,10 @@ namespace Nebula.Tests.Versioned
             var storeDoc1 = CreateDoc();
             SetDocContent(storeDoc1, doc, storeConfig, dbAccess, storeMapping);
 
-            DoDeleteTest(
+            await DoDeleteTest(
                 client,
                 dbAccess,
+                null,
                 new[] { storeDoc1 },
                 doc, 2, null, true);
         }
@@ -165,7 +206,7 @@ namespace Nebula.Tests.Versioned
         public async Task UpsertDocumentAsyncAsCreate()
         {
             var client = Substitute.For<IDocumentClient>();
-            DoUpsertTest(client, await CreateDbAccess(client), null, CreateTestDoc1(), 1, 0, false);
+            await DoUpsertTest(client, await CreateDbAccess(client), null, null, CreateTestDoc1(), 1, 0, false);
         }
 
         [Fact]
@@ -182,11 +223,24 @@ namespace Nebula.Tests.Versioned
             var storeDoc1 = CreateDoc();
             SetDocContent(storeDoc1, doc, storeConfig, dbAccess, storeMapping);
 
-            DoUpsertTest(
+            await DoUpsertTest(
                 client,
                 dbAccess,
+                null,
                 new[] { storeDoc1 },
                 doc, 2, storeDoc1.Version, false);
+        }
+
+        [Fact]
+        public async Task UpsertDocumentAsyncWithActorId()
+        {
+            var client = Substitute.For<IDocumentClient>();
+
+            var actorId = "TestActor";
+            var metadataSource = Substitute.For<IDocumentMetadataSource>();
+            metadataSource.GetActorId().Returns(actorId);
+
+            await DoUpsertTest(client, await CreateDbAccess(client), metadataSource, null, CreateTestDoc1(), 1, 0, false, actorId);
         }
 
         [Fact]
@@ -199,7 +253,8 @@ namespace Nebula.Tests.Versioned
 
             var dbAccess = await CreateDbAccess(client, queryPolicy);
 
-            DoUpsertFailureTest<NebulaStoreException>(client, dbAccess, null, CreateTestDoc1(), 0, "Failed to create document query");
+            await DoUpsertFailureTest<NebulaStoreException>(
+                client, dbAccess, null, CreateTestDoc1(), 0, "Failed to create document query");
         }
 
         [Fact]
@@ -208,10 +263,11 @@ namespace Nebula.Tests.Versioned
             var client = Substitute.For<IDocumentClient>();
             var dbAccess = await CreateDbAccess(client);
 
-            client.CreateDocumentQuery<VersionedDocumentStoreClient.VersionedDbDocument>(Arg.Any<Uri>(), Arg.Any<string>(), Arg.Any<FeedOptions>())
+            client.CreateDocumentQuery<VersionedDocumentStoreClient.VersionedDbDocument>(Arg.Any<Uri>(), Arg.Any<SqlQuerySpec>(), Arg.Any<FeedOptions>())
                 .Throws<Exception>();
 
-            DoUpsertFailureTest<NebulaStoreException>(client, dbAccess, null, CreateTestDoc1(), 0, "Failed to create document query");
+            await DoUpsertFailureTest<NebulaStoreException>(
+                client, dbAccess, null, CreateTestDoc1(), 0, "Failed to create document query");
         }
 
         [Fact]
@@ -224,10 +280,11 @@ namespace Nebula.Tests.Versioned
             var storeDoc1 = CreateDoc();
             SetDocContent(storeDoc1, CreateTestDoc1(), storeConfig, dbAccess, storeMapping);
 
-            client.CreateDocumentQuery<VersionedDocumentStoreClient.VersionedDbDocument>(Arg.Any<Uri>(), Arg.Any<string>(), Arg.Any<FeedOptions>())
+            client.CreateDocumentQuery<VersionedDocumentStoreClient.VersionedDbDocument>(Arg.Any<Uri>(), Arg.Any<SqlQuerySpec>(), Arg.Any<FeedOptions>())
                 .Returns(CreateQueryResult(CreateFailingQueryEnumerable()));
 
-            DoUpsertFailureTest<NebulaStoreException>(client, dbAccess, null, CreateTestDoc1(), 0, "Failed to execute query");
+            await DoUpsertFailureTest<NebulaStoreException>(
+                client, dbAccess, null, CreateTestDoc1(), 0, "Failed to execute query");
         }
 
         [Fact]
@@ -237,8 +294,10 @@ namespace Nebula.Tests.Versioned
             var dbAccess = await CreateDbAccess(client);
 
             var failDoc = new TestFailureDoc();
+            failDoc.Id = "error";
 
-            DoUpsertFailureTest<NebulaStoreException>(client, dbAccess, null, failDoc, 0, "Failed to serialise document content");
+            await DoUpsertFailureTest<NebulaStoreException>(
+                client, dbAccess, null, failDoc, 0, "Failed to serialise document content");
         }
 
         [Fact]
@@ -247,9 +306,14 @@ namespace Nebula.Tests.Versioned
             var client = Substitute.For<IDocumentClient>();
             var dbAccess = await CreateDbAccess(client);
 
-            client.CreateDocumentAsync(Arg.Any<Uri>(), Arg.Any<object>()).Throws<Exception>();
+            client.ExecuteStoredProcedureAsync<dynamic>(
+                    Arg.Any<Uri>(),
+                    Arg.Any<RequestOptions>(),
+                    Arg.Any<dynamic[]>())
+                .Throws<Exception>();
 
-            DoUpsertFailureTest<NebulaStoreException>(client, dbAccess, null, CreateTestDoc1(), 0, "Failed to write document");
+            await DoUpsertFailureTest<NebulaStoreException>(
+                client, dbAccess, null, CreateTestDoc1(), 0, "Failed to write document");
         }
 
         [Fact]
@@ -265,7 +329,8 @@ namespace Nebula.Tests.Versioned
             var storeDoc1 = CreateDoc();
             SetDocContent(storeDoc1, doc, storeConfig, dbAccess, storeMapping);
 
-            DoUpsertFailureTest<NebulaStoreConcurrencyException>(client, dbAccess, new[] { storeDoc1 }, doc, 3, "Existing document version does not match the specified check version");
+            await DoUpsertFailureTest<NebulaStoreConcurrencyException>(
+                client, dbAccess, new[] { storeDoc1 }, doc, 3, "Existing document version does not match the specified check version");
         }
 
         [Fact]
@@ -282,9 +347,10 @@ namespace Nebula.Tests.Versioned
             var storeDoc1 = CreateDoc();
             SetDocContent(storeDoc1, doc, storeConfig, dbAccess, storeMapping);
 
-            DoUpsertTest(
+            await DoUpsertTest(
                 client,
                 dbAccess,
+                null,
                 new[] { storeDoc1 },
                 doc, 2, null, false);
         }
@@ -1086,14 +1152,16 @@ namespace Nebula.Tests.Versioned
             };
         }
 
-        private async void DoUpsertTest(
+        private async Task DoUpsertTest(
             IDocumentClient client,
             DocumentDbAccess dbAccess,
+            IDocumentMetadataSource metadataSource,
             IList<VersionedDocumentStoreClient.VersionedDbDocument> existingQueryResult,
             TestDoc expectedDoc,
             int version,
             int? checkVersion,
-            bool isDeleted)
+            bool isDeleted,
+            string actorId = null)
         {
             CreateTestStore(out var storeConfig, out var storeMapping);
 
@@ -1103,12 +1171,19 @@ namespace Nebula.Tests.Versioned
                     .Returns(CreateQueryResult(existingQueryResult));
             }
 
-            object savedObj = null;
-            await client.CreateDocumentAsync(
-                Arg.Any<Uri>(),
-                Arg.Do<DocumentStoreClient<VersionedDocumentStoreClient.VersionedDbDocument>.DbDocument>(x => savedObj = x));
+            if (metadataSource == null)
+            {
+                metadataSource = Substitute.For<IDocumentMetadataSource>();
+                metadataSource.GetActorId().Returns((string)null);
+            }
 
-            var logic = new VersionedDocumentStoreClient(dbAccess, storeConfig);
+            object savedObj = null;
+            await client.ExecuteStoredProcedureAsync<dynamic>(
+                Arg.Any<Uri>(),
+                Arg.Any<RequestOptions>(),
+                Arg.Do<dynamic[]>(args => savedObj = args[0]));
+
+            var logic = new VersionedDocumentStoreClient(dbAccess, storeConfig, metadataSource);
 
             await logic.UpsertDocumentAsync(expectedDoc, storeMapping, new OperationOptions{ CheckVersion = checkVersion });
 
@@ -1127,9 +1202,12 @@ namespace Nebula.Tests.Versioned
 
             Assert.Equal(version, result.Metadata.Version);
             Assert.Equal(isDeleted, result.Metadata.IsDeleted);
+            Assert.Equal(actorId, result.Metadata.ActorId);
+
+            metadataSource.Received(1).GetActorId();
         }
 
-        private async void DoUpsertFailureTest<T>(
+        private async Task DoUpsertFailureTest<T>(
             IDocumentClient client,
             DocumentDbAccess dbAccess,
             IList<VersionedDocumentStoreClient.VersionedDbDocument> existingQueryResult,
@@ -1142,14 +1220,16 @@ namespace Nebula.Tests.Versioned
                 new OperationOptions{ CheckVersion = checkVersion }), expectedErrorMessage);
         }
 
-        private async void DoDeleteTest(
+        private async Task DoDeleteTest(
             IDocumentClient client,
             DocumentDbAccess dbAccess,
+            IDocumentMetadataSource metadataSource,
             IList<VersionedDocumentStoreClient.VersionedDbDocument> existingQueryResult,
             TestDoc expectedDoc,
             int version,
             int? checkVersion,
-            bool isDeleted)
+            bool isDeleted,
+            string actorId = null)
         {
             CreateTestStore(out var storeConfig, out var storeMapping);
 
@@ -1159,12 +1239,19 @@ namespace Nebula.Tests.Versioned
                     .Returns(CreateQueryResult(existingQueryResult));
             }
 
-            object savedObj = null;
-            await client.CreateDocumentAsync(
-                Arg.Any<Uri>(),
-                Arg.Do<DocumentStoreClient<VersionedDocumentStoreClient.VersionedDbDocument>.DbDocument>(x => savedObj = x));
+            if (metadataSource == null)
+            {
+                metadataSource = Substitute.For<IDocumentMetadataSource>();
+                metadataSource.GetActorId().Returns((string)null);
+            }
 
-            var logic = new VersionedDocumentStoreClient(dbAccess, storeConfig);
+            object savedObj = null;
+            await client.ExecuteStoredProcedureAsync<dynamic>(
+                Arg.Any<Uri>(),
+                Arg.Any<RequestOptions>(),
+                Arg.Do<dynamic[]>(args => savedObj = args[0]));
+
+            var logic = new VersionedDocumentStoreClient(dbAccess, storeConfig, metadataSource);
 
             await logic.DeleteDocumentAsync(expectedDoc.Id, storeMapping, new OperationOptions{ CheckVersion = checkVersion });
 
@@ -1184,9 +1271,12 @@ namespace Nebula.Tests.Versioned
 
             Assert.Equal(version, result.Metadata.Version);
             Assert.Equal(isDeleted, result.Metadata.IsDeleted);
+            Assert.Equal(actorId, result.Metadata.ActorId);
+
+            metadataSource.Received(1).GetActorId();
         }
 
-        private async void DoDeleteNoChangeTest(
+        private async Task DoDeleteNoChangeTest(
             IDocumentClient client,
             DocumentDbAccess dbAccess,
             IList<VersionedDocumentStoreClient.VersionedDbDocument> existingQueryResult,
@@ -1209,7 +1299,7 @@ namespace Nebula.Tests.Versioned
                 Arg.Any<DocumentStoreClient<VersionedDocumentStoreClient.VersionedDbDocument>.DbDocument>());
         }
 
-        private async void DoDeleteFailureTest<T>(
+        private async Task DoDeleteFailureTest<T>(
             IDocumentClient client,
             DocumentDbAccess dbAccess,
             IList<VersionedDocumentStoreClient.VersionedDbDocument> existingQueryResult,

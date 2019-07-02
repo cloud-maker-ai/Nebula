@@ -74,6 +74,21 @@ namespace Nebula.Versioned
             return new VersionedDocumentStoreClient(documentDbAccess, config);
         }
 
+        protected static IVersionedDocumentStoreClient CreateStoreLogic(
+            IDocumentDbAccess dbAccess,
+            DocumentStoreConfig config,
+            IDocumentMetadataSource metadataSource)
+        {
+            var documentDbAccess = dbAccess as DocumentDbAccess;
+
+            if (documentDbAccess == null)
+            {
+                throw new InvalidOperationException("Document db access interface is not a supported type");
+            }
+
+            return new VersionedDocumentStoreClient(documentDbAccess, config, metadataSource);
+        }
+
         protected void ThrowTerminatingError(string message, Exception exception = null)
         {
             throw new NebulaStoreException(message, exception);
