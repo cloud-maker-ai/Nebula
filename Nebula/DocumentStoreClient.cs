@@ -349,6 +349,9 @@ namespace Nebula
 
             [JsonProperty("@service")]
             public string Service { get; set; }
+
+            [JsonProperty("@actor", DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
+            public string Actor { get; set; }
         }
     }
 }
