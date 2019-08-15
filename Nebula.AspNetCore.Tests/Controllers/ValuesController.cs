@@ -19,19 +19,36 @@ namespace Nebula.AspNetCore.Tests.Controllers
 
         // GET api/values
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<string>>> Get()
+        public async Task<ActionResult<IEnumerable<Daisy>>> Get()
         {
-            var daisy = new Daisy
+            var garden = new Garden
             {
                 Id = Guid.NewGuid(),
+                Address = "1 Park Lane"
+            };
+
+            var daisy1 = new Daisy
+            {
+                Id = Guid.NewGuid(),
+                GardenId = garden.Id,
                 Colour = "Red"
             };
 
-            await _flowerStore.Upsert(daisy);
+            var daisy2 = new Daisy
+            {
+                Id = Guid.NewGuid(),
+                GardenId = garden.Id,
+                Colour = "White"
+            };
 
-            var result = await _flowerStore.GetById(daisy.Id);
+            await _flowerStore.UpsertGarden(garden);
 
-            return new[] { result.Colour };
+            await _flowerStore.UpsertDaisy(daisy1);
+            await _flowerStore.UpsertDaisy(daisy2);
+
+            var daisies = await _flowerStore.GetDaisiesInGarden(garden.Id);
+
+            return daisies;
         }
 
         // GET api/values/5

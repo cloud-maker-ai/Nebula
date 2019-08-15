@@ -3,14 +3,11 @@ using Newtonsoft.Json;
 
 namespace Nebula.AspNetCore.Tests.Store
 {
-    public class Daisy
+    public class Garden
     {
         public Guid Id { get; set; }
 
         [JsonProperty(Required = Required.Always)]
-        public Guid GardenId { get; set; }
-
-        [JsonProperty(Required = Required.Always)]
-        public string Colour { get; set; }
+        public string Address { get; set; }
     }
 }
