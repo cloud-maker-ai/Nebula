@@ -5,7 +5,7 @@
     <AssemblyName>Nebula</AssemblyName>
     <RootNamespace>Nebula</RootNamespace>
     <PackageId>CloudMaker.Nebula.Core</PackageId>
-    <Version>1.0.1</Version>
+    <Version>1.0.2</Version>
     <Authors>CloudMaker</Authors>
     <Company>Cloud Maker</Company>
     <Description></Description>
