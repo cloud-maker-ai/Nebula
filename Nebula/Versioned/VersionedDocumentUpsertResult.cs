@@ -11,18 +11,21 @@ namespace Nebula.Versioned
         /// Initialises a new instance of the <see cref="VersionedDocumentUpsertResult{TDocument}"/> class.
         /// </summary>
         /// <param name="documentId">The document id.</param>
-        /// <param name="documentVersion">The document version.</param>
+        /// <param name="metadata">The document metadata.</param>
         /// <param name="document">The document that was stored.</param>
-        public VersionedDocumentUpsertResult(string documentId, int documentVersion, TDocument document)
+        public VersionedDocumentUpsertResult(string documentId, VersionedDocumentMetadata metadata, TDocument document)
         {
             if (documentId == null)
                 throw new ArgumentNullException(nameof(documentId));
+            if (metadata == null)
+                throw new ArgumentNullException(nameof(metadata));
             if (document == null)
                 throw new ArgumentNullException(nameof(document));
 
             DocumentId = documentId;
-            DocumentVersion = documentVersion;
+            DocumentVersion = metadata.Version;
             Document = document;
+            DocumentWithMetadata = new VersionedDocumentWithMetadata<TDocument>(metadata, document);
         }
 
         /// <summary>
@@ -39,5 +42,10 @@ namespace Nebula.Versioned
         /// Gets the document that was stored.
         /// </summary>
         public TDocument Document { get; }
+
+        /// <summary>
+        /// Gets the document that was stored, along with the version metadata.
+        /// </summary>
+        public VersionedDocumentWithMetadata<TDocument> DocumentWithMetadata { get; }
     }
 }
