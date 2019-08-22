@@ -187,7 +187,7 @@ namespace Nebula.Versioned
             if (mapping == null)
                 throw new ArgumentNullException(nameof(mapping));
 
-            var query = CreateQueryAllById(id, mapping);
+            var query = CreateQueryAllVersionsById(id, mapping);
             var documents = await ExecuteQueryAsync(query);
 
             var ordered = documents.OrderBy(d => d.Version).ToArray();
@@ -315,7 +315,7 @@ namespace Nebula.Versioned
 
             parameters = parameters ?? new DbParameter[0];
 
-            var builtQuery = CreateQuery(mapping, query, parameters);
+            var builtQuery = CreateQueryByLatest(mapping, query, parameters);
             var documents = await ExecuteQueryAsync(builtQuery);
 
             if (documents.Count == 0)
@@ -546,24 +546,20 @@ namespace Nebula.Versioned
         private IQueryable<VersionedDbDocument> CreateQueryById<TDocument>(string id, DocumentTypeMapping<TDocument> mapping)
         {
             var idParameter = new DbParameter("id", id);
+            var query = $"[x].{mapping.IdPropertyName} = @id";
 
-            // The first version is always fetched to get the creation time.
-            var query = $"[x].{mapping.IdPropertyName} = @id AND (c['@latest'] = true OR c['@version'] = 1)";
-
-            return CreateQuery(mapping, query, new[] { idParameter });
+            return CreateQueryByLatest(mapping, query, new[] { idParameter });
         }
 
         private IQueryable<VersionedDbDocument> CreateQueryById<TDocument>(string id, int version, DocumentTypeMapping<TDocument> mapping)
         {
             var idParameter = new DbParameter("id", id);
+            var query = $"[x].{mapping.IdPropertyName} = @id";
 
-            // The first version is always fetched to get the creation time.
-            var query = $"[x].{mapping.IdPropertyName} = @id AND (c['@version'] = {version} OR c['@version'] = 1)";
-
-            return CreateQuery(mapping, query, new[] { idParameter });
+            return CreateQueryByVersion(mapping, query, version, new[] { idParameter });
         }
 
-        private IQueryable<VersionedDbDocument> CreateQueryAllById<TDocument>(string id, DocumentTypeMapping<TDocument> mapping)
+        private IQueryable<VersionedDbDocument> CreateQueryAllVersionsById<TDocument>(string id, DocumentTypeMapping<TDocument> mapping)
         {
             var idParameter = new DbParameter("id", id);
             var query = $"[x].{mapping.IdPropertyName} = @id";
@@ -589,7 +585,40 @@ namespace Nebula.Versioned
 
         private IQueryable<VersionedDbDocument> CreateQueryAll<TDocument>(DocumentTypeMapping<TDocument> mapping)
         {
-            return CreateQuery(mapping, null);
+            return CreateQueryByLatest(mapping, null);
+        }
+
+        private IQueryable<VersionedDbDocument> CreateQueryByLatest<TDocument>(
+            DocumentTypeMapping<TDocument> mapping,
+            string query,
+            IEnumerable<DbParameter> parameters = null)
+        {
+            if (query != null)
+            {
+                query += " AND ";
+            }
+
+            // The first version is always fetched to get the creation time.
+            query += "(c['@latest'] = true OR c['@version'] = 1)";
+
+            return CreateQuery(mapping, query, parameters);
+        }
+
+        private IQueryable<VersionedDbDocument> CreateQueryByVersion<TDocument>(
+            DocumentTypeMapping<TDocument> mapping,
+            string query,
+            int version,
+            IEnumerable<DbParameter> parameters = null)
+        {
+            if (query != null)
+            {
+                query += " AND ";
+            }
+
+            // The first version is always fetched to get the creation time.
+            query += $"(c['@version'] = {version} OR c['@version'] = 1)";
+
+            return CreateQuery(mapping, query, parameters);
         }
 
         private IQueryable<VersionedDbDocument> CreateQuery<TDocument>(
@@ -642,7 +671,7 @@ namespace Nebula.Versioned
 
             var query = $"[x].{mapping.IdPropertyName} IN ({inIds})";
 
-            return CreateQuery(mapping, query);
+            return CreateQueryByLatest(mapping, query);
         }
 
         private SqlQuerySpec CreateQuerySpec(string queryText, IEnumerable<DbParameter> parameters)
