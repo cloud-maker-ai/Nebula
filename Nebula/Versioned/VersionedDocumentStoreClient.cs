@@ -79,7 +79,13 @@ namespace Nebula.Versioned
 
             await CreateDocumentAsync(dbRecord, existingDocument);
 
-            return new VersionedDocumentUpsertResult<TDocument>(documentId, version, document);
+            var updatedDocument = await GetDocumentAsync(documentId, version, mapping);
+            if (updatedDocument.ResultType == DocumentReadResultType.Failed)
+            {
+                throw new NebulaStoreException($"Failed to retrieve document: {updatedDocument.FailureDetails.Message}");
+            }
+
+            return new VersionedDocumentUpsertResult<TDocument>(documentId, updatedDocument.Metadata, updatedDocument.Document);
         }
 
         /// <inheritdoc />

@@ -206,7 +206,7 @@ namespace Nebula.Tests.Versioned
         public async Task UpsertDocumentAsyncAsCreate()
         {
             var client = Substitute.For<IDocumentClient>();
-            await DoUpsertTest(client, await CreateDbAccess(client), null, null, CreateTestDoc1(), 1, 0, false);
+            await DoCreateTest(client, await CreateDbAccess(client), null, CreateTestDoc1(), false);
         }
 
         [Fact]
@@ -223,7 +223,7 @@ namespace Nebula.Tests.Versioned
             var storeDoc1 = CreateDoc();
             SetDocContent(storeDoc1, doc, storeConfig, dbAccess, storeMapping);
 
-            await DoUpsertTest(
+            await DoUpdateTest(
                 client,
                 dbAccess,
                 null,
@@ -240,7 +240,7 @@ namespace Nebula.Tests.Versioned
             var metadataSource = Substitute.For<IDocumentMetadataSource>();
             metadataSource.GetActorId().Returns(actorId);
 
-            await DoUpsertTest(client, await CreateDbAccess(client), metadataSource, null, CreateTestDoc1(), 1, 0, false, actorId);
+            await DoCreateTest(client, await CreateDbAccess(client), metadataSource, CreateTestDoc1(), false, actorId);
         }
 
         [Fact]
@@ -347,7 +347,7 @@ namespace Nebula.Tests.Versioned
             var storeDoc1 = CreateDoc();
             SetDocContent(storeDoc1, doc, storeConfig, dbAccess, storeMapping);
 
-            await DoUpsertTest(
+            await DoUpdateTest(
                 client,
                 dbAccess,
                 null,
@@ -1152,24 +1152,17 @@ namespace Nebula.Tests.Versioned
             };
         }
 
-        private async Task DoUpsertTest(
+        private async Task DoCreateTest(
             IDocumentClient client,
             DocumentDbAccess dbAccess,
             IDocumentMetadataSource metadataSource,
-            IList<VersionedDocumentStoreClient.VersionedDbDocument> existingQueryResult,
             TestDoc expectedDoc,
-            int version,
-            int? checkVersion,
             bool isDeleted,
             string actorId = null)
         {
             CreateTestStore(out var storeConfig, out var storeMapping);
-
-            if (existingQueryResult != null)
-            {
-                client.CreateDocumentQuery<VersionedDocumentStoreClient.VersionedDbDocument>(Arg.Any<Uri>(), Arg.Any<SqlQuerySpec>(), Arg.Any<FeedOptions>())
-                    .Returns(CreateQueryResult(existingQueryResult));
-            }
+            const int version = 1;
+            const int checkVersion = 0;
 
             if (metadataSource == null)
             {
@@ -1182,6 +1175,79 @@ namespace Nebula.Tests.Versioned
                 Arg.Any<Uri>(),
                 Arg.Any<RequestOptions>(),
                 Arg.Do<dynamic[]>(args => savedObj = args[0]));
+
+            var storeDoc = CreateDoc(expectedDoc.Id, version);
+            SetDocContent(storeDoc, expectedDoc, storeConfig, dbAccess, storeMapping);
+
+            client.CreateDocumentQuery<VersionedDocumentStoreClient.VersionedDbDocument>(
+                    Arg.Any<Uri>(),
+                    Arg.Any<SqlQuerySpec>(),
+                    Arg.Any<FeedOptions>())
+                .Returns(
+                    CreateQueryResult(new List<VersionedDocumentStoreClient.VersionedDbDocument>()),
+                    CreateQueryResult(new[] { storeDoc }));
+
+            var logic = new VersionedDocumentStoreClient(dbAccess, storeConfig, metadataSource);
+
+            await logic.UpsertDocumentAsync(expectedDoc, storeMapping, new OperationOptions { CheckVersion = checkVersion });
+
+            Assert.NotNull(savedObj);
+            var savedDoc = ExtractDoc(savedObj);
+
+            client.CreateDocumentQuery<VersionedDocumentStoreClient.VersionedDbDocument>(Arg.Any<Uri>(), Arg.Any<SqlQuerySpec>(), Arg.Any<FeedOptions>())
+                .Returns(CreateQueryResult(new[] { savedDoc }));
+
+            var result = await logic.GetDocumentAsync(expectedDoc.Id, storeMapping, null);
+
+            Assert.Equal(DocumentReadResultType.Loaded, result.ResultType);
+            Assert.Equal(expectedDoc.Data, result.Document.Data);
+            Assert.Equal(expectedDoc.Id, result.Document.Id);
+            Assert.Null(result.FailureDetails);
+
+            Assert.Equal(version, result.Metadata.Version);
+            Assert.Equal(isDeleted, result.Metadata.IsDeleted);
+            Assert.Equal(actorId, result.Metadata.ActorId);
+
+            metadataSource.Received(1).GetActorId();
+        }
+
+        private async Task DoUpdateTest(
+            IDocumentClient client,
+            DocumentDbAccess dbAccess,
+            IDocumentMetadataSource metadataSource,
+            IList<VersionedDocumentStoreClient.VersionedDbDocument> existingQueryResult,
+            TestDoc expectedDoc,
+            int version,
+            int? checkVersion,
+            bool isDeleted,
+            string actorId = null)
+        {
+            CreateTestStore(out var storeConfig, out var storeMapping);
+
+            client.CreateDocumentQuery<VersionedDocumentStoreClient.VersionedDbDocument>(Arg.Any<Uri>(), Arg.Any<SqlQuerySpec>(), Arg.Any<FeedOptions>())
+                .Returns(CreateQueryResult(existingQueryResult));
+
+            if (metadataSource == null)
+            {
+                metadataSource = Substitute.For<IDocumentMetadataSource>();
+                metadataSource.GetActorId().Returns((string)null);
+            }
+
+            object savedObj = null;
+            await client.ExecuteStoredProcedureAsync<dynamic>(
+                Arg.Any<Uri>(),
+                Arg.Any<RequestOptions>(),
+                Arg.Do<dynamic[]>(args => savedObj = args[0]));
+
+            var storeDoc = CreateDoc(expectedDoc.Id, version + 1);
+            SetDocContent(storeDoc, expectedDoc, storeConfig, dbAccess, storeMapping);
+
+            client.CreateDocumentQuery<VersionedDocumentStoreClient.VersionedDbDocument>(
+                    Arg.Any<Uri>(),
+                    Arg.Is<SqlQuerySpec>(query => query.QueryText.Contains($"c['@version'] = {version + 1}")),
+                    Arg.Any<FeedOptions>())
+                .Returns(
+                    CreateQueryResult(new[] { storeDoc }));
 
             var logic = new VersionedDocumentStoreClient(dbAccess, storeConfig, metadataSource);
 
