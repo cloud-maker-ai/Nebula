@@ -77,7 +77,7 @@ namespace Nebula.Versioned
 
             SetDocumentContent(dbRecord, document, mapping);
 
-            await CreateDocumentAsync(dbRecord);
+            await CreateDocumentAsync(dbRecord, existingDocument);
 
             var updatedDocument = await GetDocumentAsync(documentId, version, mapping);
             if (updatedDocument.ResultType == DocumentReadResultType.Failed)
@@ -136,7 +136,7 @@ namespace Nebula.Versioned
 
             SetDocumentContentFromExisting(dbRecord, existingDocument, mapping);
 
-            await CreateDocumentAsync(dbRecord);
+            await CreateDocumentAsync(dbRecord, existingDocument);
         }
 
         /// <inheritdoc />
@@ -315,7 +315,7 @@ namespace Nebula.Versioned
 
             parameters = parameters ?? new DbParameter[0];
 
-            var builtQuery = CreateQuery(mapping, query, parameters);
+            var builtQuery = CreateQueryByLatest(mapping, query, parameters);
             var documents = await ExecuteQueryAsync(builtQuery);
 
             if (documents.Count == 0)
@@ -538,13 +538,17 @@ namespace Nebula.Versioned
             return true;
         }
 
+        private async Task CreateDocumentAsync(VersionedDbDocument newRecord, VersionedDbDocument existingRecord)
+        {
+            await ExecuteStoredProcedureAsync<CreateDocumentStoredProcedure>(newRecord.PartitionKey, newRecord, existingRecord);
+        }
 
         private IQueryable<VersionedDbDocument> CreateQueryById<TDocument>(string id, DocumentTypeMapping<TDocument> mapping)
         {
             var idParameter = new DbParameter("id", id);
             var query = $"[x].{mapping.IdPropertyName} = @id";
 
-            return CreateQuery(mapping, query, new[] { idParameter });
+            return CreateQueryByLatest(mapping, query, new[] { idParameter });
         }
 
         private IQueryable<VersionedDbDocument> CreateQueryById<TDocument>(string id, int version, DocumentTypeMapping<TDocument> mapping)
@@ -581,7 +585,23 @@ namespace Nebula.Versioned
 
         private IQueryable<VersionedDbDocument> CreateQueryAll<TDocument>(DocumentTypeMapping<TDocument> mapping)
         {
-            return CreateQuery(mapping, null);
+            return CreateQueryByLatest(mapping, null);
+        }
+
+        private IQueryable<VersionedDbDocument> CreateQueryByLatest<TDocument>(
+            DocumentTypeMapping<TDocument> mapping,
+            string query,
+            IEnumerable<DbParameter> parameters = null)
+        {
+            if (query != null)
+            {
+                query += " AND ";
+            }
+
+            // The first version is always fetched to get the creation time.
+            query += "(c['@latest'] = true OR c['@version'] = 1)";
+
+            return CreateQuery(mapping, query, parameters);
         }
 
         private IQueryable<VersionedDbDocument> CreateQueryByVersion<TDocument>(
@@ -651,7 +671,7 @@ namespace Nebula.Versioned
 
             var query = $"[x].{mapping.IdPropertyName} IN ({inIds})";
 
-            return CreateQuery(mapping, query);
+            return CreateQueryByLatest(mapping, query);
         }
 
         private SqlQuerySpec CreateQuerySpec(string queryText, IEnumerable<DbParameter> parameters)

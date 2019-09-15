@@ -137,6 +137,12 @@ namespace Nebula.Tests.Versioned
 
             client.CreateDocumentAsync(Arg.Any<Uri>(), Arg.Any<object>()).Throws<Exception>();
 
+            client.ExecuteStoredProcedureAsync<dynamic>(
+                    Arg.Any<Uri>(),
+                    Arg.Any<RequestOptions>(),
+                    Arg.Any<dynamic[]>())
+                .Throws<Exception>();
+
             await DoDeleteFailureTest<NebulaStoreException>(
                 client, dbAccess, new[] { storeDoc1 }, doc1.Id, storeDoc1.Version, "Failed to write document");
         }
@@ -300,7 +306,11 @@ namespace Nebula.Tests.Versioned
             var client = Substitute.For<IDocumentClient>();
             var dbAccess = await CreateDbAccess(client);
 
-            client.CreateDocumentAsync(Arg.Any<Uri>(), Arg.Any<object>()).Throws<Exception>();
+            client.ExecuteStoredProcedureAsync<dynamic>(
+                    Arg.Any<Uri>(),
+                    Arg.Any<RequestOptions>(),
+                    Arg.Any<dynamic[]>())
+                .Throws<Exception>();
 
             await DoUpsertFailureTest<NebulaStoreException>(
                 client, dbAccess, null, CreateTestDoc1(), 0, "Failed to write document");
@@ -1161,9 +1171,10 @@ namespace Nebula.Tests.Versioned
             }
 
             object savedObj = null;
-            await client.CreateDocumentAsync(
+            await client.ExecuteStoredProcedureAsync<dynamic>(
                 Arg.Any<Uri>(),
-                Arg.Do<DocumentStoreClient<VersionedDocumentStoreClient.VersionedDbDocument>.DbDocument>(x => savedObj = x));
+                Arg.Any<RequestOptions>(),
+                Arg.Do<dynamic[]>(args => savedObj = args[0]));
 
             var storeDoc = CreateDoc(expectedDoc.Id, version);
             SetDocContent(storeDoc, expectedDoc, storeConfig, dbAccess, storeMapping);
@@ -1223,9 +1234,10 @@ namespace Nebula.Tests.Versioned
             }
 
             object savedObj = null;
-            await client.CreateDocumentAsync(
+            await client.ExecuteStoredProcedureAsync<dynamic>(
                 Arg.Any<Uri>(),
-                Arg.Do<DocumentStoreClient<VersionedDocumentStoreClient.VersionedDbDocument>.DbDocument>(x => savedObj = x));
+                Arg.Any<RequestOptions>(),
+                Arg.Do<dynamic[]>(args => savedObj = args[0]));
 
             var storeDoc = CreateDoc(expectedDoc.Id, version + 1);
             SetDocContent(storeDoc, expectedDoc, storeConfig, dbAccess, storeMapping);
@@ -1300,9 +1312,10 @@ namespace Nebula.Tests.Versioned
             }
 
             object savedObj = null;
-            await client.CreateDocumentAsync(
+            await client.ExecuteStoredProcedureAsync<dynamic>(
                 Arg.Any<Uri>(),
-                Arg.Do<DocumentStoreClient<VersionedDocumentStoreClient.VersionedDbDocument>.DbDocument>(x => savedObj = x));
+                Arg.Any<RequestOptions>(),
+                Arg.Do<dynamic[]>(args => savedObj = args[0]));
 
             var logic = new VersionedDocumentStoreClient(dbAccess, storeConfig, metadataSource);
 

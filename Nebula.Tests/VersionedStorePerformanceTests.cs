@@ -29,8 +29,8 @@ namespace Nebula.Tests
             // - Rate limiting.
             //
             // Current performance
-            // - Write: 0.5sec - 1.3sec
-            // - Read: 0.9sec - 0.3
+            // - Write: 0.5sec
+            // - Read: 0.9sec
 
             var configManager = new ServiceDbConfigManager("TestService");
             var dbAccess = await CreateDbAccess(configManager);
@@ -66,8 +66,8 @@ namespace Nebula.Tests
             // - Rate limiting.
             //
             // Current performance
-            // - Write: 60sec - 80sec
-            // - Read: 2.6sec - 5.2sec
+            // - Write: 60sec
+            // - Read: 2.6sec
 
             const int numberOfVersions = 20;
 
@@ -110,8 +110,8 @@ namespace Nebula.Tests
             // - Rate limiting.
             //
             // Current performance
-            // - Write: 1.9sec - 0.9sec
-            // - Read: 0.1sec - 0.1sec
+            // - Write: 1.9sec
+            // - Read: 0.1sec
 
             const int numberOfVersions = 20;
 
@@ -156,9 +156,9 @@ namespace Nebula.Tests
             // - Rate limiting.
             //
             // Current performance
-            // - 2nd write: 0.04 sec - 0.3sec
-            // - 1000th write: 0.04 sec - 0.1sec
-            // - Read: 0.04 sec - 0.1sec
+            // - 2nd write: 0.04 sec
+            // - 1000th write: 0.04 sec
+            // - Read: 0.04 sec
             //
             // The current implementation does not work when thrashed with lower RU/s due to the RU cost of
             // the read and write operations. There is a timeout waiting for retries. An improved
