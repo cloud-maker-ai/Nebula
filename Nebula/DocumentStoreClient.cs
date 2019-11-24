@@ -352,6 +352,10 @@ namespace Nebula
 
             [JsonProperty("@actor", DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
             public string Actor { get; set; }
+
+            [JsonProperty("@timestamp")]
+            [JsonConverter(typeof(UnixDateTimeConverter))]
+            public new DateTime Timestamp { get; set; }
         }
     }
 }

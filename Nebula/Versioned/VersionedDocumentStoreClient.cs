@@ -74,6 +74,7 @@ namespace Nebula.Versioned
             dbRecord.PartitionKey = mapping.PartitionKeyMapper(document);
             dbRecord.Version = version;
             dbRecord.Actor = GetActorId();
+            dbRecord.Timestamp = DateTime.UtcNow;
 
             SetDocumentContent(dbRecord, document, mapping);
 
@@ -133,6 +134,7 @@ namespace Nebula.Versioned
             dbRecord.Version = version;
             dbRecord.Deleted = true;
             dbRecord.Actor = GetActorId();
+            dbRecord.Timestamp = DateTime.UtcNow;
 
             SetDocumentContentFromExisting(dbRecord, existingDocument, mapping);
 

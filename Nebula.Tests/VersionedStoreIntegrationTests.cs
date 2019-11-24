@@ -497,13 +497,15 @@ namespace Nebula.Tests
                 Colour = "Green"
             };
 
-            for (int i = 0; i < 50; i++)
+            for (int i = 0; i < 5; i++)
             {
                 // Mutate the record.
                 bartlett.Colour = i % 2 == 0 ? "Red" : "DarkRed";
 
                 await fruitStore.UpsertPear(bartlett);
                 await fruitStore.UpsertPear(comice);
+
+                Thread.Sleep(1000);
             }
 
             await fruitStore.DeletePearById(bartlett.Id);
@@ -513,16 +515,30 @@ namespace Nebula.Tests
 
             var r2 = await fruitStore.GetPearVersions(bartlett.Id.ToString());
             Assert.NotNull(r2);
-            Assert.Equal(51, r2.Metadata.Count);
+            Assert.Equal(6, r2.Metadata.Count);
             Assert.Equal(1, r2.Metadata[0].Version);
             Assert.False(r2.Metadata[0].IsDeleted);
 
             var lastVersion = r2.Metadata.Last();
 
-            Assert.Equal(51, lastVersion.Version);
+            Assert.Equal(6, lastVersion.Version);
             Assert.True(lastVersion.IsDeleted);
             Assert.True(lastVersion.CreatedTime < lastVersion.ModifiedTime);
             Assert.Equal(r2.Metadata[0].CreatedTime, lastVersion.CreatedTime);
+
+            for (var i = 1; i < r2.Metadata.Count; i++)
+            {
+                var prev = r2.Metadata[i - 1];
+                var current = r2.Metadata[i];
+
+                Assert.True(current.ModifiedTime > prev.ModifiedTime);
+                Assert.True(current.ModifiedTime - prev.ModifiedTime >= TimeSpan.FromSeconds(1));
+
+                Assert.True(current.ModifiedTime > prev.CreatedTime);
+                Assert.Equal(current.CreatedTime, prev.CreatedTime);
+
+                Assert.False(prev.IsDeleted);
+            }
         }
 
         [Fact]
