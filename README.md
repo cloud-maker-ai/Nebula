@@ -9,6 +9,27 @@ Nebula is an open-source .NET Core data abstraction library backed by Cosmos DB.
 
 Nebula leverages the speed and scailability of Cosmos DB while significantly reducing it's cost limitations by logically separating data across shared throughput allocation. This unlocks the benefits of Cosmos DB to projects with lower budgets and simplifies Cosmos DB service operational complexity where price is not a factor.
 
+## How it works
+
+Entities stored and retrieved with Nebula contain useful metadata. A given entity has a version identifier, deleted flag, creation time and last modified time. The version identifier can be supplied to read and write operations to fetch a particular version or to ensure that there are no concurrent modifications during an operation that requires write consistency. This provides simplified versioning for common use cases without the need to build logic on top of Cosmos DB’s change feed support directly.
+
+Documents stored using Nebula are wrapped with framework metadata to support versioning, efficient querying etc. For example,
+
+```json
+{
+  "@version": 1,
+  "@actor": "user_id",
+  "@deleted": false,
+  ... additional framework metadata.
+  
+  "store_specific_key": {
+    ... immutable document content.
+  }
+}
+```
+
+The wrapped document content is never modified for a particular stored version. That way, a particular version of a document can be linked to an actor at a specific point of time. Query operations are available to get at all version history for a document which can be used to satisfy versioning requirements, build audit logs etc.
+
 ## Get started
 
 ### Startup configuration
