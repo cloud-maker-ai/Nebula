@@ -15,7 +15,7 @@ Entities stored and retrieved with Nebula contain useful metadata. A given entit
 
 Documents stored using Nebula are wrapped with framework metadata to support versioning, efficient querying etc. For example,
 
-```json
+```jsonc
 {
   "@version": 1,
   "@actor": "user_id",
