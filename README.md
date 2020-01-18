@@ -17,7 +17,7 @@ Documents stored using Nebula are wrapped with framework metadata to support ver
 
 ```json
 {
-  "@version": 1 
+  "@version": 1,
   "@actor": "user_id",
   "@deleted": false,
   ... additional framework metadata.
