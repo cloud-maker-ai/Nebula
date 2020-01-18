@@ -1116,10 +1116,7 @@ namespace Nebula.Tests.Versioned
 
         private void SetDocTimestamp(VersionedDocumentStoreClient.VersionedDbDocument storeDoc, DateTime time)
         {
-            var unixStartTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
-
-            var val = (ulong)(time - unixStartTime).TotalSeconds;
-            storeDoc.SetPropertyValue("_ts", val);
+            storeDoc.Timestamp = time;
         }
 
         private DateTime GetUtcNowSeconds()
@@ -1136,7 +1133,8 @@ namespace Nebula.Tests.Versioned
                 DocumentId = "1",
                 Service = "Test",
                 Version = 1,
-                Deleted = false
+                Deleted = false,
+                Timestamp = DateTime.UtcNow
             };
         }
 
@@ -1148,7 +1146,8 @@ namespace Nebula.Tests.Versioned
                 DocumentId = docId,
                 Service = "Test",
                 Version = version,
-                Deleted = deleted
+                Deleted = deleted,
+                Timestamp = DateTime.UtcNow
             };
         }
 
