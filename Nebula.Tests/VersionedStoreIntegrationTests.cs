@@ -365,7 +365,7 @@ namespace Nebula.Tests
                 })
             };
 
-            Task.WaitAll(tasks.ToArray());
+            await Task.WhenAll(tasks.ToArray());
         }
 
         [Fact]
@@ -389,8 +389,7 @@ namespace Nebula.Tests
             var t1 = Task.Run(async () => await SeedCounterAsync(gala.Id, fruitStore));
             var t2 = Task.Run(async () => await SeedCounterAsync(gala.Id, fruitStore, shouldSleep:true));
 
-            var exception = Assert.Throws<AggregateException>(() => Task.WaitAll(t1, t2));
-            Assert.Equal(typeof(NebulaStoreConcurrencyException), exception.InnerException.GetType());
+            await Assert.ThrowsAsync<NebulaStoreConcurrencyException>(() => Task.WhenAll(t1, t2));
         }
 
         [Fact]
