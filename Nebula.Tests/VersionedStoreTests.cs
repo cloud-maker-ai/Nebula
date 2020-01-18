@@ -3,11 +3,12 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Azure.Documents.Client;
 using Nebula.Config;
+using Xunit;
 using Xunit.Abstractions;
 
 namespace Nebula.Tests
 {
-    public abstract class VersionedStoreTests : IDisposable
+    public abstract class VersionedStoreTests : IAsyncLifetime
     {
         private readonly ITestOutputHelper _testOutputHelper;
 
@@ -21,7 +22,12 @@ namespace Nebula.Tests
             _dbAccesses = new List<DocumentDbAccess>();
         }
 
-        public void Dispose()
+        Task IAsyncLifetime.InitializeAsync()
+        {
+            return Task.CompletedTask;
+        }
+
+        async Task IAsyncLifetime.DisposeAsync()
         {
             // Drop the database.
             if (_dbAccesses.Count > 0)
@@ -35,9 +41,7 @@ namespace Nebula.Tests
 
                 var documentClient = firstDbAccess.GetClient();
 
-                documentClient
-                    .DeleteDatabaseAsync(UriFactory.CreateDatabaseUri(_databaseId))
-                    .Wait();
+                await documentClient.DeleteDatabaseAsync(UriFactory.CreateDatabaseUri(_databaseId));
             }
         }
 
