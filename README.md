@@ -11,7 +11,7 @@ Nebula leverages the speed and scailability of Cosmos DB while significantly red
 
 ## How it works
 
-Entities stored and retrieved with Nebula contain useful metadata. A given entity has a version identifier, deleted flag, creation time and last modified time. The version identifier can be supplied to read and write operations to fetch a particular version or to ensure that there are no concurrent modifications during an operation that requires write consistency. This provides simplified versioning for common use cases without the need to build logic on top of Cosmos DB’s change feed support directly.
+Entities stored and retrieved with Nebula contain useful metadata. A given entity has a version identifier, deleted flag, creation time and last modified time. The version identifier can be supplied to read and write operations to fetch a particular version or to ensure that there are no concurrent modifications during an operation that requires write consistency. This provides simplified versioning for common use cases without the need to build logic on top of Cosmos DB's change feed support directly.
 
 Documents stored using Nebula are wrapped with framework metadata to support versioning, efficient querying etc. For example,
 
@@ -20,10 +20,10 @@ Documents stored using Nebula are wrapped with framework metadata to support ver
   "@version": 1,
   "@actor": "user_id",
   "@deleted": false,
-  ... additional framework metadata.
+  // ... additional framework metadata.
   
   "store_specific_key": {
-    ... immutable document content.
+    // ... immutable document content.
   }
 }
 ```
