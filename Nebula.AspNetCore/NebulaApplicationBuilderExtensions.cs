@@ -1,6 +1,7 @@
 ﻿using System;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
+using Nebula.Config;
 
 namespace Nebula.AspNetCore
 {
@@ -20,11 +21,15 @@ namespace Nebula.AspNetCore
                 throw new ArgumentNullException(nameof(app));
 
             var dbAccessProvider = app.ApplicationServices.GetService<IDocumentDbAccessProvider>();
-
             var dbAccess = dbAccessProvider.GetDbAccess();
 
+            // A service scope is used so that store implementations may use scoped services.
+            var serviceScope = app.ApplicationServices.CreateScope();
+
+            var stores = serviceScope.ServiceProvider.GetServices<IDocumentStoreConfigSource>();
+
             dbAccess
-                .Open()
+                .Open(stores)
                 .Wait();
 
             return app;
