@@ -27,7 +27,7 @@ namespace Nebula.Tests.Config
         }
 
         [Fact]
-        public async void EnsureConfigCurrentWithChangedSignature()
+        public async Task EnsureConfigCurrentWithChangedSignature()
         {
             var dbConfig = CreateDbConfig();
 
@@ -78,7 +78,7 @@ namespace Nebula.Tests.Config
             manager.RegisterStoreConfigSource(configSourceA);
             manager.RegisterStoreConfigSource(configSourceB);
 
-            manager.EnsureConfigCurrent(_documentClient, dbConfig);
+            await manager.EnsureConfigCurrent(_documentClient, dbConfig);
 
             await _documentClient.Received(1).UpsertDocumentAsync(Arg.Any<Uri>(), Arg.Any<object>(), Arg.Any<RequestOptions>());
 
@@ -90,7 +90,7 @@ namespace Nebula.Tests.Config
         }
 
         [Fact]
-        public async void EnsureConfigCurrentWithUnchangedSignature()
+        public async Task EnsureConfigCurrentWithUnchangedSignature()
         {
             var dbConfig = CreateDbConfig();
 
@@ -118,13 +118,13 @@ namespace Nebula.Tests.Config
             manager.RegisterStoreConfigSource(CreateConfigSource("A"));
             manager.RegisterStoreConfigSource(CreateConfigSource("B"));
 
-            manager.EnsureConfigCurrent(_documentClient, dbConfig);
+            await manager.EnsureConfigCurrent(_documentClient, dbConfig);
 
             await AssertNoUpdateTriggered();
         }
 
         [Fact]
-        public async void EnsureConfigCurrentWithDuplicateStoreConfigRegistrationsAndNoSignatureChange()
+        public async Task EnsureConfigCurrentWithDuplicateStoreConfigRegistrationsAndNoSignatureChange()
         {
             var dbConfig = CreateDbConfig();
             var configDoc = CreateConfigDoc("Test", "sig");
@@ -137,13 +137,13 @@ namespace Nebula.Tests.Config
             manager.RegisterStoreConfigSource(CreateConfigSource("A"));
             manager.RegisterStoreConfigSource(CreateConfigSource("A"));
 
-            manager.EnsureConfigCurrent(_documentClient, dbConfig);
+            await manager.EnsureConfigCurrent(_documentClient, dbConfig);
 
             await AssertNoUpdateTriggered();
         }
 
         [Fact]
-        public void EnsureConfigCurrentThrowsForSignatureFailure()
+        public async Task EnsureConfigCurrentThrowsForSignatureFailure()
         {
             var dbConfig = CreateDbConfig();
             var configDoc = CreateConfigDoc("Test", "sig");
@@ -154,37 +154,9 @@ namespace Nebula.Tests.Config
             var manager = new ServiceDbConfigManager("Test", _signatureGenerator);
             manager.RegisterStoreConfigSource(_configSourceA);
 
-            var ex = Assert.Throws<NebulaConfigException>(() => manager.EnsureConfigCurrent(_documentClient, dbConfig));
+            var ex = await Assert.ThrowsAsync<NebulaConfigException>(() => manager.EnsureConfigCurrent(_documentClient, dbConfig));
             
             Assert.Contains("signature generation failed", ex.Message);
-        }
-
-        [Fact]
-        public void IsStoreConfigRegisteredTrueWhenRegistered()
-        {
-            var configDoc = CreateConfigDoc("Test", "sig");
-
-            _signatureGenerator.CreateSignature(Arg.Any<IList<DocumentStoreConfig>>()).Throws(new Exception());
-            _documentClient.ReadDocumentAsync(Arg.Any<Uri>()).Returns(WrapResource(configDoc));
-
-            var manager = new ServiceDbConfigManager("Test", _signatureGenerator);
-
-            manager.RegisterStoreConfigSource(_configSourceA);
-
-            Assert.True(manager.IsStoreConfigRegistered(_configSourceA));
-        }
-
-        [Fact]
-        public void IsStoreConfigRegisteredFalseWhenNotRegistered()
-        {
-            var configDoc = CreateConfigDoc("Test", "sig");
-
-            _signatureGenerator.CreateSignature(Arg.Any<IList<DocumentStoreConfig>>()).Throws(new Exception());
-            _documentClient.ReadDocumentAsync(Arg.Any<Uri>()).Returns(WrapResource(configDoc));
-
-            var manager = new ServiceDbConfigManager("Test", _signatureGenerator);
-
-            Assert.False(manager.IsStoreConfigRegistered(_configSourceA));
         }
 
         private DocumentDbConfig CreateDbConfig()

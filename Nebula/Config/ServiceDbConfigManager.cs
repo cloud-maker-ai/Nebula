@@ -71,26 +71,14 @@ namespace Nebula.Config
             RegisterSource(source);
         }
 
-        /// <inheritdoc />
-        public bool IsStoreConfigRegistered(IDocumentStoreConfigSource source)
-        {
-            if (source == null)
-                throw new ArgumentNullException(nameof(source));
-
-            lock (_sync)
-            {
-                return _configSources.ContainsValue(source);
-            }
-        }
-
-        internal void EnsureConfigCurrent(IDocumentClient client, DocumentDbConfig dbConfig)
+        internal async Task EnsureConfigCurrent(IDocumentClient client, DocumentDbConfig dbConfig)
         {
             if (client == null)
                 throw new ArgumentNullException(nameof(client));
             if (dbConfig == null)
                 throw new ArgumentNullException(nameof(dbConfig));
 
-            EnsureCurrent(client, dbConfig);
+            await EnsureCurrent(client, dbConfig);
         }
 
         internal string CreateDocumentContentKey(string storeName, string documentName)
@@ -105,10 +93,8 @@ namespace Nebula.Config
 
         private void RegisterSource(IDocumentStoreConfigSource source)
         {
-            // This processing must be synchronised to ensure that service updates are kept consistent with the
-            // registration of new sources. The locking flow is simplified by ensuring that a service update
-            // cannot happen at the same time as a source being registered. That has a trade off of efficiency
-            // because callers may be blocked at registration while waiting for a service update on another thread.
+            // Multiple threads may attempt to register config sources. Access to the config sources is
+            // synchronised to ensure thread safety.
 
             var storeName = source.GetConfig().StoreName;
 
@@ -124,11 +110,8 @@ namespace Nebula.Config
             }
         }
 
-        private void EnsureCurrent(IDocumentClient client, DocumentDbConfig dbConfig)
+        private async Task EnsureCurrent(IDocumentClient client, DocumentDbConfig dbConfig)
         {
-            // This processing must be synchronised to ensure that service updates are kept consistent. See further
-            // commentary in RegisterSource.
-
             List<DocumentStoreConfig> stores;
 
             lock (_sync)
@@ -144,28 +127,21 @@ namespace Nebula.Config
 
             var configSignature = CreateSignature(stores);
 
-            lock (_sync)
+            try
             {
-                try
-                {
-                    EnsureServiceConfigAsync(client, dbConfig, configSignature, stores).Wait();
-                }
-                catch (AggregateException e)
-                {
-                    foreach (var exception in e.Flatten().InnerExceptions)
-                    {
-                        if (exception is DocumentClientException)
-                        {
-                            throw new NebulaConfigException("Failed to update service configuration due to document client error", e);
-                        }
-                    }
-
-                    throw new NebulaConfigException("Failed to update service configuration", e.Flatten());
-                }
-
-                // Service update successful.
-                _serviceUpdateRequired = false;
+                await EnsureServiceConfigAsync(client, dbConfig, configSignature, stores);
             }
+            catch (DocumentClientException e)
+            {
+                throw new NebulaConfigException("Failed to update service configuration due to document client error", e);
+            }
+            catch (Exception e)
+            {
+                throw new NebulaConfigException("Failed to update service configuration", e);
+            }
+
+            // Service update successful.
+            _serviceUpdateRequired = false;
         }
 
         private string CreateSignature(List<DocumentStoreConfig> stores)

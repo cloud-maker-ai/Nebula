@@ -30,21 +30,19 @@ namespace Nebula.Management
         /// <inheritdoc />
         public async Task PurgeDocumentsAsync()
         {
-            var client = GetClient();
-
-            var documents = await GetAllDocumentsAsync(client);
+            var documents = await GetAllDocumentsAsync();
 
             foreach (var document in documents)
             {
                 var requestOptions = new RequestOptions { PartitionKey = new PartitionKey(document.PartitionKey) };
 
-                await client.DeleteDocumentAsync(
+                await _dbAccess.DbClient.DeleteDocumentAsync(
                     UriFactory.CreateDocumentUri(_dbAccess.DbConfig.DatabaseId, _dbAccess.DbConfig.CollectionName, document.Id),
                     requestOptions);
             }
         }
 
-        private async Task<IList<DocumentMetadata>> GetAllDocumentsAsync(IDocumentClient client)
+        private async Task<IList<DocumentMetadata>> GetAllDocumentsAsync()
         {
             FeedOptions queryOptions = new FeedOptions
             {
@@ -58,14 +56,9 @@ namespace Nebula.Management
                     AND c['@service'] = '{_dbAccess.ConfigManager.ServiceName}'
                     AND NOT IS_NULL(c['_partitionKey'])";
 
-            var query = client.CreateDocumentQuery<DocumentMetadata>(_collectionUri, selectStatement, queryOptions);
+            var query = _dbAccess.DbClient.CreateDocumentQuery<DocumentMetadata>(_collectionUri, selectStatement, queryOptions);
 
             return await ExecuteQueryAsync(query);
-        }
-
-        private IDocumentClient GetClient()
-        {
-            return _dbAccess.GetClient();
         }
 
         private async Task<IList<DocumentMetadata>> ExecuteQueryAsync(IQueryable<DocumentMetadata> query)

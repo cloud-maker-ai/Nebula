@@ -654,10 +654,8 @@ namespace Nebula.Versioned
 
             var querySpec = CreateQuerySpec(selectStatement, parameters);
 
-            var client = DbAccess.GetClient();
-
             return MakeClientCall(
-                () => client.CreateDocumentQuery<VersionedDbDocument>(CollectionUri, querySpec, queryOptions),
+                () => DbAccess.DbClient.CreateDocumentQuery<VersionedDbDocument>(CollectionUri, querySpec, queryOptions),
                 "Failed to create document query");
         }
 

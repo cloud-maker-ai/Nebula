@@ -93,7 +93,7 @@ namespace Nebula.Tests.Management
 
             var documentDbAccess = new DocumentDbAccess(CreateDbConfig(), configManager, documentClient, dbService, queryPolicy);
 
-            await documentDbAccess.Open();
+            await documentDbAccess.Open(new IDocumentStoreConfigSource[0]);
 
             return documentDbAccess;
         }

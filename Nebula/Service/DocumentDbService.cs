@@ -4,30 +4,39 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
+using Nebula.Config;
 
 namespace Nebula.Service
 {
     /// <inheritdoc cref="IDocumentDbService" />
     public class DocumentDbService : IDocumentDbService, IDisposable
     {
+        private readonly ServiceDbConfigManager _configManager;
         private readonly DocumentDbConfig _dbConfig;
         private readonly DocumentClient _client;
 
         /// <summary>
         /// Initialises a new instance of the <see cref="DocumentDbService"/> class.
         /// </summary>
+        /// <param name="configManager">The service config manager.</param>
         /// <param name="dbConfig">The document db config.</param>
-        public DocumentDbService(DocumentDbConfig dbConfig)
+        public DocumentDbService(ServiceDbConfigManager configManager, DocumentDbConfig dbConfig)
         {
+            if (configManager == null)
+                throw new ArgumentNullException(nameof(configManager));
             if (dbConfig == null)
                 throw new ArgumentNullException(nameof(dbConfig));
 
+            _configManager = configManager;
             _dbConfig = dbConfig;
 
-            var connectionPolicy = new ConnectionPolicy
-            {
+            var connectionPolicy = new ConnectionPolicy {
                 ConnectionMode = ConnectionMode.Direct,
-                ConnectionProtocol = Protocol.Tcp
+                ConnectionProtocol = Protocol.Tcp,
+                RetryOptions = new RetryOptions {
+                    MaxRetryAttemptsOnThrottledRequests = 20,
+                    MaxRetryWaitTimeInSeconds = 60
+                }
             };
 
             _client = new DocumentClient(new Uri(dbConfig.ServiceEndpoint), dbConfig.AuthKey, connectionPolicy);
@@ -39,8 +48,11 @@ namespace Nebula.Service
         }
 
         /// <inheritdoc />
-        public async Task StartAsync()
+        public async Task StartAsync(IEnumerable<IDocumentStoreConfigSource> storeConfigSources)
         {
+            if (storeConfigSources == null)
+                throw new ArgumentNullException(nameof(storeConfigSources));
+
             await _client.OpenAsync();
 
             await CreateDatabaseIfNotExistsAsync();
@@ -48,6 +60,8 @@ namespace Nebula.Service
             await CreateCollectionIfNotExistsAsync();
 
             await CreateStoredProceduresAsync();
+
+            await EnsureStoreConfigCurrentAsync(storeConfigSources);
         }
 
         /// <inheritdoc />
@@ -121,6 +135,16 @@ namespace Nebula.Service
                         $"Failed to create stored procedure: {storedProcedureUri}");
                 }
             }
+        }
+
+        private async Task EnsureStoreConfigCurrentAsync(IEnumerable<IDocumentStoreConfigSource> storeConfigSources)
+        {
+            foreach (var source in storeConfigSources)
+            {
+                _configManager.RegisterStoreConfigSource(source);
+            }
+
+            await _configManager.EnsureConfigCurrent(_client, _dbConfig);
         }
 
         private static IEnumerable<Tuple<StoredProcedureAttribute, StoredProcedureDefinition>> GetStoredProcedureDefinitions(Assembly assembly)
