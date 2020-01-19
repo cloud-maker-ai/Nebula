@@ -39,9 +39,16 @@ The wrapped document content is never modified for a particular stored version. 
 ```csharp
 public void ConfigureServices(IServiceCollection services)
 {
-    services.AddNebula("FloristService", Configuration);
-    
-    services.AddScoped<FlowerStore>();
+    // Nebula setup:
+    services
+        .AddNebula("Florist", Configuration)
+        .AddNebulaStore<FlowerStore>()
+        .AddNebulaStore<OrderStore>();
+
+    // Normal DI of your store classes:
+    services
+        .AddScoped<FlowerStore>()
+        .AddScoped<OrderStore>();
 }
 ```
 

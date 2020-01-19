@@ -24,15 +24,18 @@ namespace Nebula.Tests
         public async void TestMultipleServices()
         {
             var configManager1 = new ServiceDbConfigManager("TestService1");
-            var dbAccess1 = await CreateDbAccess(configManager1);
+            var dbAccess1 = CreateDbAccess(configManager1);
             var dbAccessProvider1 = new TestDocumentDbAccessProvider(dbAccess1);
 
             var configManager2 = new ServiceDbConfigManager("TestService2");
-            var dbAccess2 = await CreateDbAccess(configManager2);
+            var dbAccess2 = CreateDbAccess(configManager2);
             var dbAccessProvider2 = new TestDocumentDbAccessProvider(dbAccess2);
 
             var fruitStore1 = new FruitStore(dbAccessProvider1);
             var fruitStore2 = new FruitStore(dbAccessProvider2);
+
+            await dbAccess1.Open(new[] { fruitStore1 });
+            await dbAccess2.Open(new[] { fruitStore2 });
 
             var apples = new List<Apple>();
 
@@ -80,11 +83,13 @@ namespace Nebula.Tests
         public async void TestMultipleServiceStores()
         {
             var configManager = new ServiceDbConfigManager("TestService");
-            var dbAccess = await CreateDbAccess(configManager);
+            var dbAccess = CreateDbAccess(configManager);
             var dbAccessProvider = new TestDocumentDbAccessProvider(dbAccess);
 
             var fruitStore = new FruitStore(dbAccessProvider);
             var flowerStore = new FlowerStore(dbAccessProvider);
+
+            await dbAccess.Open(new VersionedDocumentStore[] { fruitStore, flowerStore });
 
             var apples = new List<Apple>();
             var daisies = new List<Daisy>();
@@ -145,10 +150,12 @@ namespace Nebula.Tests
         public async void TestMultipleStoreDocumentTypes()
         {
             var configManager = new ServiceDbConfigManager("TestService");
-            var dbAccess = await CreateDbAccess(configManager);
+            var dbAccess = CreateDbAccess(configManager);
             var dbAccessProvider = new TestDocumentDbAccessProvider(dbAccess);
 
             var fruitStore = new FruitStore(dbAccessProvider);
+
+            await dbAccess.Open(new[] { fruitStore });
 
             var apples = new List<Apple>();
             var pears = new List<Pear>();
@@ -223,15 +230,18 @@ namespace Nebula.Tests
         public async void TestMultipleServicesDocumentPurge()
         {
             var configManager1 = new ServiceDbConfigManager("TestService1");
-            var dbAccess1 = await CreateDbAccess(configManager1);
+            var dbAccess1 = CreateDbAccess(configManager1);
             var dbAccessProvider1 = new TestDocumentDbAccessProvider(dbAccess1);
 
             var configManager2 = new ServiceDbConfigManager("TestService2");
-            var dbAccess2 = await CreateDbAccess(configManager2);
+            var dbAccess2 = CreateDbAccess(configManager2);
             var dbAccessProvider2 = new TestDocumentDbAccessProvider(dbAccess2);
 
             var fruitStore1 = new FruitStore(dbAccessProvider1);
             var fruitStore2 = new FruitStore(dbAccessProvider2);
+
+            await dbAccess1.Open(new[] { fruitStore1 });
+            await dbAccess2.Open(new[] { fruitStore2 });
 
             var apples = new List<Apple>();
 
@@ -292,10 +302,12 @@ namespace Nebula.Tests
         public async void TestLargeNumberOfDocuments()
         {
             var configManager = new ServiceDbConfigManager("TestService");
-            var dbAccess = await CreateDbAccess(configManager);
+            var dbAccess = CreateDbAccess(configManager);
             var dbAccessProvider = new TestDocumentDbAccessProvider(dbAccess);
 
             var fruitStore = new FruitStore(dbAccessProvider);
+
+            await dbAccess.Open(new[] { fruitStore });
 
             var apples = new List<Apple>();
 
@@ -337,46 +349,15 @@ namespace Nebula.Tests
 
         [Fact]
         [Trait("Category", "Integration")]
-        public async void TestServiceRegistrationAndUpdateConcurrency()
-        {
-            // This test performs a concurrency check to ensure that multiple threads can successfully interact with
-            // the same config manager. The config manager is thread safe so multiple stores registering and performing
-            // actions on different threads should produce a consistent result.
-
-            var configManager = new ServiceDbConfigManager("TestService");
-            var dbAccess = await CreateDbAccess(configManager);
-            var dbAccessProvider = new TestDocumentDbAccessProvider(dbAccess);
-
-            List<Task> tasks = new List<Task>
-            {
-                Task.Run(async () =>
-                {
-                    var fruitStore = new FruitStore(dbAccessProvider);
-
-                    var gala = new Apple { Id = Guid.NewGuid(), Type = "Gala" };
-                    await fruitStore.UpsertApple(gala);
-                }),
-                Task.Run(async () =>
-                {
-                    var flowerStore = new FlowerStore(dbAccessProvider);
-
-                    var daisy = new Daisy { Id = Guid.NewGuid(), Colour = "Red" };
-                    await flowerStore.Upsert(daisy);
-                })
-            };
-
-            await Task.WhenAll(tasks.ToArray());
-        }
-
-        [Fact]
-        [Trait("Category", "Integration")]
         public async void TestDbConcurrency()
         {
             var configManager = new ServiceDbConfigManager("TestService");
-            var dbAccess = await CreateDbAccess(configManager);
+            var dbAccess = CreateDbAccess(configManager);
             var dbAccessProvider = new TestDocumentDbAccessProvider(dbAccess);
 
             var fruitStore = new FruitStore(dbAccessProvider);
+
+            await dbAccess.Open(new[] { fruitStore });
 
             var gala = new Apple
             {
@@ -397,10 +378,12 @@ namespace Nebula.Tests
         public async void TestDocumentAttachments()
         {
             var configManager = new ServiceDbConfigManager("TestService");
-            var dbAccess = await CreateDbAccess(configManager);
+            var dbAccess = CreateDbAccess(configManager);
             var dbAccessProvider = new TestDocumentDbAccessProvider(dbAccess);
 
             var store = new EmailStore(dbAccessProvider);
+
+            await dbAccess.Open(new[] { store });
 
             var email = new Email
             {
@@ -431,10 +414,12 @@ namespace Nebula.Tests
         public async void TestDbParameterQueries()
         {
             var configManager = new ServiceDbConfigManager("TestService");
-            var dbAccess = await CreateDbAccess(configManager);
+            var dbAccess = CreateDbAccess(configManager);
             var dbAccessProvider = new TestDocumentDbAccessProvider(dbAccess);
 
             var fruitStore = new FruitStore(dbAccessProvider);
+
+            await dbAccess.Open(new[] { fruitStore });
 
             var pears = new List<Pear>();
 
@@ -479,10 +464,12 @@ namespace Nebula.Tests
         public async void TestMetadataQueries()
         {
             var configManager = new ServiceDbConfigManager("TestService");
-            var dbAccess = await CreateDbAccess(configManager);
+            var dbAccess = CreateDbAccess(configManager);
             var dbAccessProvider = new TestDocumentDbAccessProvider(dbAccess);
 
             var fruitStore = new FruitStore(dbAccessProvider);
+
+            await dbAccess.Open(new[] { fruitStore });
 
             var bartlett = new Pear
             {
@@ -545,10 +532,12 @@ namespace Nebula.Tests
         public async void TestVersionedQueries()
         {
             var configManager = new ServiceDbConfigManager("TestService");
-            var dbAccess = await CreateDbAccess(configManager);
+            var dbAccess = CreateDbAccess(configManager);
             var dbAccessProvider = new TestDocumentDbAccessProvider(dbAccess);
 
             var fruitStore = new FruitStore(dbAccessProvider);
+
+            await dbAccess.Open(new[] { fruitStore });
 
             var bartlett = new Pear
             {
@@ -606,11 +595,13 @@ namespace Nebula.Tests
         public async void TestCustomDocumentMetadata()
         {
             var configManager = new ServiceDbConfigManager("TestService");
-            var dbAccess = await CreateDbAccess(configManager);
+            var dbAccess = CreateDbAccess(configManager);
             var dbAccessProvider = new TestDocumentDbAccessProvider(dbAccess);
             var metadataSource = new TestDocumentMetadataSource("User1");
 
             var fruitStore = new FruitStore(dbAccessProvider, metadataSource);
+
+            await dbAccess.Open(new[] { fruitStore });
 
             var bartlett = new Pear
             {

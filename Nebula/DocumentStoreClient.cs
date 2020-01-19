@@ -46,6 +46,11 @@ namespace Nebula
             get { return _collectionUri; }
         }
 
+        private IDocumentClient DbClient
+        {
+            get { return _dbAccess.DbClient; }
+        }
+
         protected string CreateDbRecordId<TDocument>(DocumentTypeMapping<TDocument> mapping, params string[] values)
         {
             if (values.Length == 0)
@@ -66,16 +71,9 @@ namespace Nebula
             return GuidUtility.Create(GuidUtility.UrlNamespace, $"{documentRecordId}_{attachmentKey}").ToString();
         }
 
-        private IDocumentClient GetClient()
-        {
-            return _dbAccess.GetClient();
-        }
-
         protected async Task CreateDocumentAsync(DbDocument dbRecord)
         {
-            var client = GetClient();
-
-            await MakeClientCall(async () => await client.CreateDocumentAsync(_collectionUri, dbRecord), "Failed to write document");
+            await MakeClientCall(async () => await DbClient.CreateDocumentAsync(_collectionUri, dbRecord), "Failed to write document");
         }
 
         protected async Task CreateDocumentAttachmentAsync<TDocument, TAttachment>(
@@ -84,14 +82,12 @@ namespace Nebula
             AttachmentTypeMapping<TDocument, TAttachment> attachmentMapping,
             TAttachment attachment)
         {
-            var client = GetClient();
-
             var documentUri = UriFactory.CreateDocumentUri(
                 _dbAccess.DbConfig.DatabaseId, _dbAccess.DbConfig.CollectionName, documentRecordId);
 
             await MakeClientCall(async () =>
             {
-                await client.CreateAttachmentAsync(
+                await DbClient.CreateAttachmentAsync(
                     documentUri,
                     attachmentMapping.Writer(attachment),
                     new MediaOptions
@@ -119,8 +115,6 @@ namespace Nebula
             string partitionKey,
             AttachmentTypeMapping<TDocument, TAttachment> attachmentMapping)
         {
-            var client = GetClient();
-
             var attachmentUri = UriFactory.CreateAttachmentUri(
                 _dbAccess.DbConfig.DatabaseId,
                 _dbAccess.DbConfig.CollectionName,
@@ -130,7 +124,7 @@ namespace Nebula
             var requestOptions = new RequestOptions { PartitionKey = new PartitionKey(partitionKey) };
 
             var attachmentResponse = await MakeClientCall(
-                async () => await client.ReadAttachmentAsync(attachmentUri, requestOptions),
+                async () => await DbClient.ReadAttachmentAsync(attachmentUri, requestOptions),
                 "Failed to read document attachment");
 
             if (attachmentResponse == null)
@@ -140,7 +134,7 @@ namespace Nebula
             }
 
             var mediaResponse = await MakeClientCall(
-                async () => await client.ReadMediaAsync(attachmentResponse.Resource.MediaLink),
+                async () => await DbClient.ReadMediaAsync(attachmentResponse.Resource.MediaLink),
                 "Failed to read document attachment media");
 
             if (mediaResponse == null)
@@ -303,8 +297,6 @@ namespace Nebula
 
         protected async Task ExecuteStoredProcedureAsync<TProcedure>(string partitionKey, params dynamic[] procedureParams)
         {
-            var client = GetClient();
-
             if (!_storedProcedures.TryGetValue(typeof(TProcedure), out var procedureName))
             {
                 throw new NebulaStoreException($"Stored procedure '{typeof(TProcedure).FullName}' not found");
@@ -318,7 +310,7 @@ namespace Nebula
                 PartitionKey = new PartitionKey(partitionKey)
             };
 
-            await MakeClientCall(async () => await client.ExecuteStoredProcedureAsync<dynamic>(
+            await MakeClientCall(async () => await DbClient.ExecuteStoredProcedureAsync<dynamic>(
                 storedProcedureUri, requestOptions, procedureParams), "Failed to write document");
         }
 

@@ -1,4 +1,6 @@
-﻿using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
+using Nebula.Config;
 
 namespace Nebula.Service
 {
@@ -10,7 +12,8 @@ namespace Nebula.Service
         /// <summary>
         /// Starts the service.
         /// </summary>
+        /// <param name="storeConfigSources">The store config sources.</param>
         /// <returns>A task that represents the asynchronous start operation.</returns>
-        Task StartAsync();
+        Task StartAsync(IEnumerable<IDocumentStoreConfigSource> storeConfigSources);
     }
 }

@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 using Nebula.Config;
 
 namespace Nebula
@@ -32,6 +33,6 @@ namespace Nebula
         /// table and ensure that the configuration is current. To avoid this startup latency on the first request,
         /// the client is explicitly opened and the configuration is checked/updated.</para>
         /// </remarks>
-        Task Open();
+        Task Open(IEnumerable<IDocumentStoreConfigSource> storeConfigSources);
     }
 }

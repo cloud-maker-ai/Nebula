@@ -13,9 +13,12 @@ namespace Nebula.Tests
 {
     public class VersionedStorePerformanceTests : VersionedStoreTests
     {
+        private readonly ServiceDbConfigManager _configManager;
+
         public VersionedStorePerformanceTests(ITestOutputHelper testOutputHelper)
             : base(testOutputHelper)
         {
+            _configManager = new ServiceDbConfigManager("TestService");
         }
 
         [Fact]
@@ -32,11 +35,7 @@ namespace Nebula.Tests
             // - Write: 0.5sec
             // - Read: 0.9sec
 
-            var configManager = new ServiceDbConfigManager("TestService");
-            var dbAccess = await CreateDbAccess(configManager);
-            var dbAccessProvider = new TestDocumentDbAccessProvider(dbAccess);
-
-            var store = new LargeDocumentStore(dbAccessProvider);
+            var store = await StartNebula(dbAccess => new LargeDocumentStore(dbAccess));
 
             var document = JsonConvert.DeserializeObject<LargeDocument>(File.ReadAllText("TestData/LargeDocument.json"));
             document.Id = Guid.NewGuid();
@@ -71,11 +70,7 @@ namespace Nebula.Tests
 
             const int numberOfVersions = 20;
 
-            var configManager = new ServiceDbConfigManager("TestService");
-            var dbAccess = await CreateDbAccess(configManager);
-            var dbAccessProvider = new TestDocumentDbAccessProvider(dbAccess);
-
-            var store = new LargeDocumentStore(dbAccessProvider);
+            var store = await StartNebula(dbAccess => new LargeDocumentStore(dbAccess));
 
             var document = JsonConvert.DeserializeObject<LargeDocument>(File.ReadAllText("TestData/LargeDocument.json"));
             document.Id = Guid.NewGuid();
@@ -115,11 +110,7 @@ namespace Nebula.Tests
 
             const int numberOfVersions = 20;
 
-            var configManager = new ServiceDbConfigManager("TestService");
-            var dbAccess = await CreateDbAccess(configManager);
-            var dbAccessProvider = new TestDocumentDbAccessProvider(dbAccess);
-
-            var store = new LargeDocumentStore(dbAccessProvider);
+            var store = await StartNebula(dbAccess => new LargeDocumentStore(dbAccess));
 
             var attachment = JsonConvert.DeserializeObject<LargeDocument>(File.ReadAllText("TestData/LargeDocument.json"));
 
@@ -168,11 +159,7 @@ namespace Nebula.Tests
             const int collectionRuLimit = 2000;
             const int numberOfVersions = 1000;
 
-            var configManager = new ServiceDbConfigManager("TestService");
-            var dbAccess = await CreateDbAccess(configManager, collectionRuLimit);
-            var dbAccessProvider = new TestDocumentDbAccessProvider(dbAccess);
-
-            var store = new LargeDocumentStore(dbAccessProvider);
+            var store = await StartNebula(dbAccess => new LargeDocumentStore(dbAccess), collectionRuLimit);
 
             var attachment = JsonConvert.DeserializeObject<LargeDocument>(File.ReadAllText("TestData/LargeDocument.json"));
 
@@ -195,6 +182,20 @@ namespace Nebula.Tests
             TestOutputHelper.WriteLine("Read={0}", sw.Elapsed);
 
             Assert.NotNull(result);
+        }
+
+        private async Task<TStore> StartNebula<TStore>(
+            Func<IDocumentDbAccessProvider, TStore> createStoreFunc,
+            int collectionRuLimit = 1000) where TStore : IDocumentStoreConfigSource
+        {
+            var dbAccess = CreateDbAccess(_configManager, collectionRuLimit);
+            var dbAccessProvider = new TestDocumentDbAccessProvider(dbAccess);
+
+            var store = createStoreFunc(dbAccessProvider);
+
+            await dbAccess.Open(new IDocumentStoreConfigSource[] { store });
+
+            return store;
         }
 
         private class LargeDocumentStore : VersionedDocumentStore

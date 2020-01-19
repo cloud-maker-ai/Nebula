@@ -39,7 +39,7 @@ namespace Nebula.Tests
                     return;
                 }
 
-                var documentClient = firstDbAccess.GetClient();
+                var documentClient = firstDbAccess.DbClient;
 
                 await documentClient.DeleteDatabaseAsync(UriFactory.CreateDatabaseUri(_databaseId));
             }
@@ -50,12 +50,12 @@ namespace Nebula.Tests
             get { return _testOutputHelper; }
         }
 
-        protected async Task<DocumentDbAccess> CreateDbAccess(ServiceDbConfigManager configManager, int collectionRuLimit = 1000)
+        protected DocumentDbAccess CreateDbAccess(
+            ServiceDbConfigManager configManager,
+            int collectionRuLimit = 1000)
         {
             var dbAccess = new DocumentDbAccess(CreateDbConfig(_databaseId, collectionRuLimit), configManager);
             _dbAccesses.Add(dbAccess);
-
-            await dbAccess.Open();
 
             return dbAccess;
         }
