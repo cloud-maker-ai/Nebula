@@ -31,31 +31,6 @@ namespace Nebula.Versioned
             }
         }
 
-        /// <summary>
-        /// Creates a new instance of the <see cref="VersionedDocumentStore"/> class.
-        /// </summary>
-        /// <param name="dbAccess">The db access interface.</param>
-        /// <param name="existingSource">The existing store configuration source.</param>
-        /// <remarks>
-        /// <para>The store is not added to the database configuration registry. <paramref name="existingSource"/> must
-        /// already been registered.</para>
-        /// </remarks>
-        [Obsolete("Az Functions")]
-        protected VersionedDocumentStore(IDocumentDbAccess dbAccess, IDocumentStoreConfigSource existingSource)
-        {
-            if (dbAccess == null)
-                throw new ArgumentNullException(nameof(dbAccess));
-            if (existingSource == null)
-                throw new ArgumentNullException(nameof(existingSource));
-
-            DbAccess = dbAccess;
-
-            if (!dbAccess.ConfigRegistry.IsStoreConfigRegistered(existingSource))
-            {
-                throw new ArgumentException("Store config has not been registed");
-            }
-        }
-
         protected abstract DocumentStoreConfig StoreConfig { get; }
 
         protected abstract IVersionedDocumentStoreClient StoreClient { get; }
