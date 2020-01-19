@@ -36,8 +36,6 @@ namespace Nebula.AspNetCore.Tests.Store
 
             _config = config.Finish();
             _client = CreateStoreLogic(DbAccess, _config, metadataSource);
-
-            DbAccess.ConfigRegistry.RegisterStoreConfigSource(this);
         }
 
         protected override DocumentStoreConfig StoreConfig

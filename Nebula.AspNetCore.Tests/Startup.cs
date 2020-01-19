@@ -26,9 +26,15 @@ namespace Nebula.AspNetCore.Tests
                 .Finish();
 
             // services.AddNebula("Florist", dbConfig);
-            services.AddNebula("Florist", Configuration);
 
-            services.AddScoped<FlowerStore>();
+            services
+                .AddNebula("Florist", Configuration)
+                .AddNebulaStore<FlowerStore>()
+                .AddNebulaStore<OrderStore>();
+
+            services
+                .AddScoped<FlowerStore>()
+                .AddScoped<OrderStore>();
         }
 
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)

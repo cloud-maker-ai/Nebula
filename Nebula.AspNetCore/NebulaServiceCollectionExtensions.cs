@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using Nebula.Config;
 
 namespace Nebula.AspNetCore
 {
@@ -87,6 +88,18 @@ namespace Nebula.AspNetCore
             services.AddHttpContextAccessor();
 
             services.TryAddScoped<IDocumentMetadataSource, DocumentMetadataSource>();
+            return services;
+        }
+
+        /// <summary>
+        /// Adds a Nebula store to the specified <see cref="T:Microsoft.Extensions.DependencyInjection.IServiceCollection" />.
+        /// </summary>
+        /// <param name="services">The services.</param>
+        /// <returns>The service collection.</returns>
+        public static IServiceCollection AddNebulaStore<TStore>(this IServiceCollection services)
+            where TStore : class, IDocumentStoreConfigSource
+        {
+            services.AddTransient<IDocumentStoreConfigSource, TStore>();
 
             return services;
         }
