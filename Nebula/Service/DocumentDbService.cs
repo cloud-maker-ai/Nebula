@@ -85,11 +85,11 @@ namespace Nebula.Service
             var partitionKeyDefinition = new PartitionKeyDefinition();
             partitionKeyDefinition.Paths.Add("/_partitionKey");
 
-            DocumentCollection documentCollection = new DocumentCollection
-            {
+            DocumentCollection documentCollection = new DocumentCollection {
                 Id = _dbConfig.CollectionName,
                 IndexingPolicy = new IndexingPolicy(),
                 PartitionKey = partitionKeyDefinition,
+                DefaultTimeToLive = -1
             };
 
             var requestOptions = new RequestOptions
