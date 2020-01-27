@@ -11,7 +11,9 @@ using Newtonsoft.Json;
 
 namespace Nebula.Unversioned
 {
-    /// <inheritdoc cref="IVersionedDocumentStoreClient"/>
+    /// <summary>
+    /// An un-versioned document store client.
+    /// </summary>
     internal class UnversionedDocumentStoreClient : DocumentStoreClient<UnversionedDocumentStoreClient.UnversionedDbDocument>, IUnversionedDocumentStoreClient
     {
         /// <summary>

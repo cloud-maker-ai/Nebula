@@ -9,7 +9,7 @@
         /// The time-to-live to apply to the document.
         /// </summary>
         /// <remarks>
-        /// <para>If not TTL is specified then the document is never automatically deleted.</para>
+        /// <para>If no TTL is specified then the document is never automatically deleted.</para>
         /// <para>If a TTL is specified then the document is deleted when the time between
         /// the last store and the current time exceeds the TTL.</para>
         /// </remarks>

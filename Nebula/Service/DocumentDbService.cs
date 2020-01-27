@@ -89,6 +89,9 @@ namespace Nebula.Service
                 Id = _dbConfig.CollectionName,
                 IndexingPolicy = new IndexingPolicy(),
                 PartitionKey = partitionKeyDefinition,
+
+                // TTL support is enabled on the collection. A value of '-1' means that TTL is enabled but documents
+                // are not expired unless TTL is specified on a per document basis.
                 DefaultTimeToLive = -1
             };
 
