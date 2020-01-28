@@ -2,12 +2,8 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Microsoft.Azure.Documents;
-using Microsoft.Azure.Documents.Client;
 using Nebula.Config;
-using Nebula.Utils;
 using Newtonsoft.Json;
 
 namespace Nebula.Versioned
@@ -38,9 +34,12 @@ namespace Nebula.Versioned
             : base(dbAccess, config, new[] { typeof(CreateDocumentStoredProcedure) })
         {
             MetadataSource = metadataSource ?? new NullDocumentMetadataSource();
+            QueryClient = new VersionedDocumentQueryClient(dbAccess, config);
         }
 
         private IDocumentMetadataSource MetadataSource { get; }
+
+        private VersionedDocumentQueryClient QueryClient { get; }
 
         /// <inheritdoc />
         public async Task<VersionedDocumentUpsertResult<TDocument>> UpsertDocumentAsync<TDocument>(
@@ -99,7 +98,7 @@ namespace Nebula.Versioned
 
             operationOptions = operationOptions ?? new OperationOptions();
 
-            var query = CreateQueryById(id, mapping);
+            var query = QueryClient.CreateQueryById(id, mapping);
             var documents = await ExecuteQueryAsync(query);
 
             var existingDocument = FindLatestDocumentIncludingDeleted(documents);
@@ -154,7 +153,7 @@ namespace Nebula.Versioned
 
             options = options ?? new VersionedDocumentReadOptions();
 
-            var query = CreateQueryById(id, mapping);
+            var query = QueryClient.CreateQueryById(id, mapping);
             var documents = await ExecuteQueryAsync(query);
 
             return ReadDocumentAsync(id, mapping, documents, options);
@@ -171,7 +170,7 @@ namespace Nebula.Versioned
             if (mapping == null)
                 throw new ArgumentNullException(nameof(mapping));
 
-            var query = CreateQueryById(id, version, mapping);
+            var query = QueryClient.CreateQueryById(id, version, mapping);
             var documents = await ExecuteQueryAsync(query);
 
             var readOptions = new VersionedDocumentReadOptions { IncludeDeleted = true };
@@ -189,7 +188,7 @@ namespace Nebula.Versioned
             if (mapping == null)
                 throw new ArgumentNullException(nameof(mapping));
 
-            var query = CreateQueryAllVersionsById(id, mapping);
+            var query = QueryClient.CreateQueryAllVersionsById(id, mapping);
             var documents = await ExecuteQueryAsync(query);
 
             var ordered = documents.OrderBy(d => d.Version).ToArray();
@@ -235,7 +234,7 @@ namespace Nebula.Versioned
 
             options = options ?? new VersionedDocumentReadOptions();
 
-            var query = CreateQueryByIds(idSet, mapping);
+            var query = QueryClient.CreateQueryByIds(idSet, mapping);
             var documents = await ExecuteQueriesAsync(query);
 
             List<VersionedDocumentReadResult<TDocument>> loaded = new List<VersionedDocumentReadResult<TDocument>>();
@@ -317,7 +316,7 @@ namespace Nebula.Versioned
 
             parameters = parameters ?? new DbParameter[0];
 
-            var builtQuery = CreateQueryByLatest(mapping, query, parameters);
+            var builtQuery = QueryClient.CreateQueryByLatest(mapping, query, parameters);
             var documents = await ExecuteQueryAsync(builtQuery);
 
             if (documents.Count == 0)
@@ -369,7 +368,7 @@ namespace Nebula.Versioned
 
             options = options ?? new VersionedDocumentReadOptions();
 
-            var query = CreateQueryAll(mapping);
+            var query = QueryClient.CreateQueryAll(mapping);
             var documents = await ExecuteQueryAsync(query);
 
             List<VersionedDocumentWithMetadata<TDocument>> result = new List<VersionedDocumentWithMetadata<TDocument>>();
@@ -468,7 +467,7 @@ namespace Nebula.Versioned
 
         private async Task<VersionedDbDocument> GetDocumentIncludingDeleted<TDocument>(string id, DocumentTypeMapping<TDocument> mapping)
         {
-            var query = CreateQueryById(id, mapping);
+            var query = QueryClient.CreateQueryById(id, mapping);
             var documents = await ExecuteQueryAsync(query);
 
             return FindLatestDocumentIncludingDeleted(documents);
@@ -543,148 +542,6 @@ namespace Nebula.Versioned
         private async Task CreateDocumentAsync(VersionedDbDocument newRecord, VersionedDbDocument existingRecord)
         {
             await ExecuteStoredProcedureAsync<CreateDocumentStoredProcedure>(newRecord.PartitionKey, newRecord, existingRecord);
-        }
-
-        private IQueryable<VersionedDbDocument> CreateQueryById<TDocument>(string id, DocumentTypeMapping<TDocument> mapping)
-        {
-            var idParameter = new DbParameter("id", id);
-            var query = $"[x].{mapping.IdPropertyName} = @id";
-
-            return CreateQueryByLatest(mapping, query, new[] { idParameter });
-        }
-
-        private IQueryable<VersionedDbDocument> CreateQueryById<TDocument>(string id, int version, DocumentTypeMapping<TDocument> mapping)
-        {
-            var idParameter = new DbParameter("id", id);
-            var query = $"[x].{mapping.IdPropertyName} = @id";
-
-            return CreateQueryByVersion(mapping, query, version, new[] { idParameter });
-        }
-
-        private IQueryable<VersionedDbDocument> CreateQueryAllVersionsById<TDocument>(string id, DocumentTypeMapping<TDocument> mapping)
-        {
-            var idParameter = new DbParameter("id", id);
-            var query = $"[x].{mapping.IdPropertyName} = @id";
-
-            return CreateQuery(mapping, query, new[] { idParameter });
-        }
-
-        private List<IQueryable<VersionedDbDocument>> CreateQueryByIds<TDocument>(ICollection<string> ids, DocumentTypeMapping<TDocument> mapping)
-        {
-            var batchSize = DbAccess.QueryPolicy.GetIdSearchLimit(ids);
-            var batched = ids.Batch(batchSize);
-
-            var result = new List<IQueryable<VersionedDbDocument>>();
-
-            foreach (var batch in batched)
-            {
-                var query = CreateQueryByIdsImpl(batch.ToArray(), mapping);
-                result.Add(query);
-            }
-
-            return result;
-        }
-
-        private IQueryable<VersionedDbDocument> CreateQueryAll<TDocument>(DocumentTypeMapping<TDocument> mapping)
-        {
-            return CreateQueryByLatest(mapping, null);
-        }
-
-        private IQueryable<VersionedDbDocument> CreateQueryByLatest<TDocument>(
-            DocumentTypeMapping<TDocument> mapping,
-            string query,
-            IEnumerable<DbParameter> parameters = null)
-        {
-            if (query != null)
-            {
-                query += " AND ";
-            }
-
-            // The first version is always fetched to get the creation time.
-            query += "(c['@latest'] = true OR c['@version'] = 1)";
-
-            return CreateQuery(mapping, query, parameters);
-        }
-
-        private IQueryable<VersionedDbDocument> CreateQueryByVersion<TDocument>(
-            DocumentTypeMapping<TDocument> mapping,
-            string query,
-            int version,
-            IEnumerable<DbParameter> parameters = null)
-        {
-            if (query != null)
-            {
-                query += " AND ";
-            }
-
-            // The first version is always fetched to get the creation time.
-            query += $"(c['@version'] = {version} OR c['@version'] = 1)";
-
-            return CreateQuery(mapping, query, parameters);
-        }
-
-        private IQueryable<VersionedDbDocument> CreateQuery<TDocument>(
-            DocumentTypeMapping<TDocument> mapping,
-            string query,
-            IEnumerable<DbParameter> parameters = null)
-        {
-            FeedOptions queryOptions = new FeedOptions
-            {
-                MaxItemCount = -1,
-                EnableCrossPartitionQuery = true
-            };
-
-            var contentKey = CreateContentKey(mapping);
-
-            string selectStatement = $"SELECT * FROM {DbAccess.DbConfig.CollectionName} as c WHERE is_defined(c.{contentKey})";
-
-            if (query != null)
-            {
-                // Perform substitution on references to the internal document. '[x].' is replaced while excluding
-                // occurrences in a string.
-                string substitutedClause = Regex.Replace(query, "\\[x\\]\\.(?=[^']*(?:'[^']*'[^']*)*$)", $"c.{contentKey}.");
-
-                selectStatement = $"{selectStatement} AND {substitutedClause}";
-            }
-
-            if (!DbAccess.QueryPolicy.IsQueryValid(selectStatement))
-            {
-                throw new NebulaStoreException("Failed to create document query");
-            }
-
-            var querySpec = CreateQuerySpec(selectStatement, parameters);
-
-            return MakeClientCall(
-                () => DbAccess.DbClient.CreateDocumentQuery<VersionedDbDocument>(CollectionUri, querySpec, queryOptions),
-                "Failed to create document query");
-        }
-
-        private IQueryable<VersionedDbDocument> CreateQueryByIdsImpl<TDocument>(ICollection<string> ids, DocumentTypeMapping<TDocument> mapping)
-        {
-            // Optimise queries for a single id to use EQUALS instead of IN.
-            if (ids.Count == 1)
-            {
-                return CreateQueryById(ids.First(), mapping);
-            }
-
-            var inIds = "'" + string.Join("','", ids) + "'";
-
-            var query = $"[x].{mapping.IdPropertyName} IN ({inIds})";
-
-            return CreateQueryByLatest(mapping, query);
-        }
-
-        private SqlQuerySpec CreateQuerySpec(string queryText, IEnumerable<DbParameter> parameters)
-        {
-            var querySpec = new SqlQuerySpec { QueryText = queryText };
-
-            if (parameters != null)
-            {
-                querySpec.Parameters = new SqlParameterCollection(
-                    parameters.Select(p => new SqlParameter(p.Name, p.Value)));
-            }
-
-            return querySpec;
         }
 
         private string GetActorId()

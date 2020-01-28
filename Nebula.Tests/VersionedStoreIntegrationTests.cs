@@ -499,7 +499,7 @@ namespace Nebula.Tests
             var r1 = await fruitStore.GetPearByQuery("[x].Colour = @colour", new[] { new DbParameter("colour", "Red") });
             Assert.True(r1.All(x => x.Colour == "Red"));
 
-            var r2 = await fruitStore.GetPearVersions(bartlett.Id.ToString());
+            var r2 = await fruitStore.GetPearVersions(bartlett.Id);
             Assert.NotNull(r2);
             Assert.Equal(6, r2.Metadata.Count);
             Assert.Equal(1, r2.Metadata[0].Version);
@@ -628,6 +628,71 @@ namespace Nebula.Tests
             Assert.Equal("User3", r3.Metadata.ActorId);
         }
 
+        [Fact]
+        [Trait("Category", "Integration")]
+        public async void TestDocumentPurge()
+        {
+            var configManager = new ServiceDbConfigManager("TestService");
+            var dbAccess = CreateDbAccess(configManager);
+            var dbAccessProvider = new TestDocumentDbAccessProvider(dbAccess);
+
+            var fruitStore = new FruitStore(dbAccessProvider);
+
+            await dbAccess.Open(new[] { fruitStore });
+
+            var gala = new Apple { Id = Guid.NewGuid(), Type = "Gala" };
+            var opal = new Apple { Id = Guid.NewGuid(), Type = "Opal" };
+
+            var redBartlett = new Pear { Id = Guid.NewGuid(), Colour = "Red" };
+            var darkRedBartlett = new Pear { Id = Guid.NewGuid(), Colour = "DarkRed" };
+
+            await fruitStore.UpsertApple(gala);
+            await fruitStore.UpsertApple(gala);
+            await fruitStore.UpsertApple(gala);
+            await fruitStore.UpsertApple(opal);
+
+            await fruitStore.UpsertPear(redBartlett);
+            await fruitStore.UpsertPear(darkRedBartlett);
+            await fruitStore.UpsertPear(darkRedBartlett);
+            await fruitStore.DeletePearById(darkRedBartlett.Id);
+
+            var galaResult = await fruitStore.GetAppleVersions(gala.Id);
+            var opalResult = await fruitStore.GetAppleVersions(opal.Id);
+            var redBartlettResult = await fruitStore.GetPearVersions(redBartlett.Id);
+            var darkRedBartlettResult = await fruitStore.GetPearVersions(redBartlett.Id);
+
+            Assert.NotNull(galaResult);
+            Assert.NotNull(opalResult);
+            Assert.NotNull(redBartlettResult);
+            Assert.NotNull(darkRedBartlettResult);
+
+            await fruitStore.PurgeAllPears();
+
+            galaResult = await fruitStore.GetAppleVersions(gala.Id);
+            opalResult = await fruitStore.GetAppleVersions(opal.Id);
+            redBartlettResult = await fruitStore.GetPearVersions(redBartlett.Id);
+            darkRedBartlettResult = await fruitStore.GetPearVersions(redBartlett.Id);
+
+            Assert.NotNull(galaResult);
+            Assert.NotNull(opalResult);
+            Assert.Null(redBartlettResult);
+            Assert.Null(darkRedBartlettResult);
+
+            await fruitStore.PurgeApple(gala.Id);
+
+            galaResult = await fruitStore.GetAppleVersions(gala.Id);
+            opalResult = await fruitStore.GetAppleVersions(opal.Id);
+
+            Assert.Null(galaResult);
+            Assert.NotNull(opalResult);
+
+            await fruitStore.UpsertApple(gala);
+
+            var versionedGalaResult = await fruitStore.GetVersionedAppleById(gala.Id);
+            Assert.NotNull(versionedGalaResult);
+            Assert.Equal(1, versionedGalaResult.Metadata.Version);
+        }
+
         private async Task SeedCounterAsync(Guid id, FruitStore fruitStore, bool shouldSleep = false)
         {
             var versionedApple = await fruitStore.GetVersionedAppleById(id);
@@ -700,6 +765,7 @@ namespace Nebula.Tests
 
             private readonly DocumentStoreConfig _config;
             private readonly IVersionedDocumentStoreClient _client;
+            private readonly IVersionedDocumentStorePurgeClient _purgeClient;
 
             public FruitStore(IDocumentDbAccessProvider dbAccessProvider)
                 : this(dbAccessProvider, null)
@@ -726,6 +792,7 @@ namespace Nebula.Tests
 
                 _config = config.Finish();
                 _client = CreateStoreLogic(DbAccess, _config, metadataSource);
+                _purgeClient = CreatePurgeLogic(DbAccess, _config);
 
                 DbAccess.ConfigRegistry.RegisterStoreConfigSource(this);
             }
@@ -738,6 +805,11 @@ namespace Nebula.Tests
             protected override IVersionedDocumentStoreClient StoreClient
             {
                 get { return _client; }
+            }
+
+            protected override IVersionedDocumentStorePurgeClient PurgeClient
+            {
+                get { return _purgeClient; }
             }
 
             public async Task<Apple> GetAppleById(Guid id)
@@ -816,14 +888,29 @@ namespace Nebula.Tests
                 return result.Loaded.Where(x => !x.Metadata.IsDeleted).Select(x => x.Document).ToArray();
             }
 
-            public async Task<VersionedDocumentMetadataReadResult> GetPearVersions(string id)
+            public async Task<VersionedDocumentMetadataReadResult> GetPearVersions(Guid id)
             {
-                return await StoreClient.GetDocumentMetadataAsync(id, _pearMapping);
+                return await StoreClient.GetDocumentMetadataAsync(id.ToString(), _pearMapping);
+            }
+
+            public async Task<VersionedDocumentMetadataReadResult> GetAppleVersions(Guid id)
+            {
+                return await StoreClient.GetDocumentMetadataAsync(id.ToString(), _appleMapping);
             }
 
             public async Task DeletePearById(Guid id)
             {
                 await StoreClient.DeleteDocumentAsync(id.ToString(), _pearMapping, new OperationOptions());
+            }
+
+            public async Task PurgeApple(Guid id)
+            {
+                await PurgeClient.PurgeDocumentAsync(id.ToString(), _appleMapping);
+            }
+
+            public async Task PurgeAllPears()
+            {
+                await PurgeClient.PurgeDocumentsAsync(_pearMapping);
             }
         }
 
