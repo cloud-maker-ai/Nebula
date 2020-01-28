@@ -1,3 +1,10 @@
+# [2.2.0] (2020-01-28)
+
+### Changes
+
+* Add un-versioned document store ([#28](https://github.com/cloud-maker-ai/Nebula/issues/28)) ([5ddd0a0](https://github.com/cloud-maker-ai/Nebula/commit/5ddd0a0))
+* Add protected document purge operations to versioned stores ([#30](https://github.com/cloud-maker-ai/Nebula/issues/30)) ([0ea6ca1](https://github.com/cloud-maker-ai/Nebula/commit/0ea6ca1))
+
 # [2.1.0] (2020-01-19)
 
 ### Changes
