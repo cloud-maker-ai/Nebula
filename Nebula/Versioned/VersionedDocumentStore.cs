@@ -39,18 +39,18 @@ namespace Nebula.Versioned
 
         protected abstract IVersionedDocumentStoreClient StoreClient { get; }
 
+        protected virtual IVersionedDocumentStorePurgeClient PurgeClient
+        {
+            get { throw new InvalidOperationException("Document store not setup with purge client"); }
+        }
+
         protected IDocumentDbAccess DbAccess { get; }
 
-        protected static IVersionedDocumentStoreClient CreateStoreLogic(IDocumentDbAccess dbAccess, DocumentStoreConfig config)
+        protected static IVersionedDocumentStoreClient CreateStoreLogic(
+            IDocumentDbAccess dbAccess,
+            DocumentStoreConfig config)
         {
-            var documentDbAccess = dbAccess as DocumentDbAccess;
-
-            if (documentDbAccess == null)
-            {
-                throw new InvalidOperationException("Document db access interface is not a supported type");
-            }
-
-            return new VersionedDocumentStoreClient(documentDbAccess, config);
+            return new VersionedDocumentStoreClient(GetDbAccessImplementation(dbAccess), config);
         }
 
         protected static IVersionedDocumentStoreClient CreateStoreLogic(
@@ -58,14 +58,17 @@ namespace Nebula.Versioned
             DocumentStoreConfig config,
             IDocumentMetadataSource metadataSource)
         {
-            var documentDbAccess = dbAccess as DocumentDbAccess;
+            return new VersionedDocumentStoreClient(GetDbAccessImplementation(dbAccess), config, metadataSource);
+        }
 
-            if (documentDbAccess == null)
-            {
-                throw new InvalidOperationException("Document db access interface is not a supported type");
-            }
+        protected static IVersionedDocumentStorePurgeClient CreatePurgeLogic(
+            IDocumentDbAccess dbAccess,
+            DocumentStoreConfig config)
+        {
+            var dbAccessImpl = GetDbAccessImplementation(dbAccess);
+            var queryClient = new VersionedDocumentQueryClient(dbAccessImpl, config);
 
-            return new VersionedDocumentStoreClient(documentDbAccess, config, metadataSource);
+            return new VersionedDocumentStorePurgeClient(dbAccessImpl, config, queryClient);
         }
 
         protected void ThrowTerminatingError(string message, Exception exception = null)
@@ -76,6 +79,18 @@ namespace Nebula.Versioned
         DocumentStoreConfig IDocumentStoreConfigSource.GetConfig()
         {
             return StoreConfig;
+        }
+
+        private static DocumentDbAccess GetDbAccessImplementation(IDocumentDbAccess dbAccess)
+        {
+            var documentDbAccess = dbAccess as DocumentDbAccess;
+
+            if (documentDbAccess == null)
+            {
+                throw new InvalidOperationException("Document db access interface is not a supported type");
+            }
+
+            return documentDbAccess;
         }
     }
 }
