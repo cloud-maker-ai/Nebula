@@ -46,7 +46,7 @@ namespace Nebula
             get { return _collectionUri; }
         }
 
-        private IDocumentClient DbClient
+        protected IDocumentClient DbClient
         {
             get { return _dbAccess.DbClient; }
         }
