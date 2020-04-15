@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using Nebula.Config;
 
 namespace Nebula
@@ -68,7 +69,7 @@ namespace Nebula
         /// <remarks>
         /// <para>The property name is 'Id' by default. Calling this method changes the default value.</para>
         /// </remarks>
-        public DocumentTypeMappingBuilder<TDocument> SetPartitionMapper(string propertyName)
+        public DocumentTypeMappingBuilder<TDocument> SetIdPropertyName(string propertyName)
         {
             if (propertyName == null)
                 throw new ArgumentNullException(nameof(propertyName));
@@ -93,7 +94,20 @@ namespace Nebula
                 throw new InvalidOperationException("Partition mapper required");
             }
 
+            CheckIdProperty();
+
             return new DocumentTypeMapping<TDocument>(_documentConfigBuilder, _documentName, _idMapper, _partitionMapper, _idPropertyName);
+        }
+
+        private void CheckIdProperty()
+        {
+            var documentType = typeof(TDocument);
+            var properties = documentType.GetProperties();
+
+            if (properties.All(p => p.Name != _idPropertyName))
+            {
+                throw new InvalidOperationException($"Id property '{_idPropertyName}' does not exist on type '{documentType.FullName}'");
+            }
         }
     }
 }

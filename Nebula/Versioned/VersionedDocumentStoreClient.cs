@@ -80,6 +80,12 @@ namespace Nebula.Versioned
             await CreateDocumentAsync(dbRecord, existingDocument);
 
             var updatedDocument = await GetDocumentAsync(documentId, version, mapping);
+
+            if (updatedDocument == null)
+            {
+                throw new NebulaStoreException("Failed to retrieve document after successful upsert");
+            }
+
             if (updatedDocument.ResultType == DocumentReadResultType.Failed)
             {
                 throw new NebulaStoreException($"Failed to retrieve document: {updatedDocument.FailureDetails.Message}");
