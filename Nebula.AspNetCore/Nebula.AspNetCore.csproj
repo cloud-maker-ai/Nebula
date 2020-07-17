@@ -1,11 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
     <AssemblyName>Nebula.AspNetCore</AssemblyName>
     <RootNamespace>Nebula.AspNetCore</RootNamespace>
     <PackageId>CloudMaker.Nebula</PackageId>
-    <Version>2.2.0</Version>
+    <Version>3.0.0</Version>
     <Authors>CloudMaker</Authors>
     <Company>Cloud Maker</Company>
     <Description>Nebula is a lightweight, fast and cost efficient .NET Core data abstraction library backed by CosmosDb.</Description>
@@ -16,8 +16,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Http" Version="2.2.2" />
     <PackageReference Include="CloudMaker.Nebula.Core" Version="2.2.0" />
-    <PackageReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="3.1.6" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="3.1.6" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="3.1.6" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="3.1.6" />
+
   </ItemGroup>
 
   <ItemGroup>

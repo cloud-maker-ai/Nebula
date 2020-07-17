@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Nebula.AspNetCore.Tests.Store;
 
 namespace Nebula.AspNetCore.Tests
@@ -18,7 +18,7 @@ namespace Nebula.AspNetCore.Tests
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
+            services.AddControllers();
 
             var dbConfig = new DocumentDbConfigBuilder(
                     "https://localhost:8081",
@@ -37,7 +37,7 @@ namespace Nebula.AspNetCore.Tests
                 .AddScoped<OrderStore>();
         }
 
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             if (env.IsDevelopment())
             {
@@ -49,7 +49,11 @@ namespace Nebula.AspNetCore.Tests
             }
 
             app.UseHttpsRedirection();
-            app.UseMvc();
+            app.UseRouting();
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapControllers();
+            });
 
             app.UseNebula();
         }
