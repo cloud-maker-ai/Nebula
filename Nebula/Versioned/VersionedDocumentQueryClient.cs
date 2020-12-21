@@ -109,7 +109,7 @@ namespace Nebula.Versioned
 
             if (query != null)
             {
-                query += " AND ";
+                query = $"({query}) AND ";
             }
 
             // The first version is always fetched to get the creation time.
@@ -129,7 +129,7 @@ namespace Nebula.Versioned
 
             if (query != null)
             {
-                query += " AND ";
+                query = $"({query}) AND ";
             }
 
             // The first version is always fetched to get the creation time.

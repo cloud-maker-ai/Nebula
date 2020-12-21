@@ -43,7 +43,7 @@ namespace Nebula
                 // occurrences in a string.
                 string substitutedClause = Regex.Replace(query, "\\[x\\]\\.(?=[^']*(?:'[^']*'[^']*)*$)", $"c.{contentKey}.");
 
-                selectStatement = $"{selectStatement} AND {substitutedClause}";
+                selectStatement = $"{selectStatement} AND ({substitutedClause})";
             }
 
             if (!DbAccess.QueryPolicy.IsQueryValid(selectStatement))

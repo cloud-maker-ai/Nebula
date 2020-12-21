@@ -80,6 +80,55 @@ namespace Nebula.Tests
 
         [Fact]
         [Trait("Category", "Integration")]
+        public async void TestWideQueryMultipleServices()
+        {
+            // This test ensures that a wide query (e.g., 'true OR true') does not return or attempt
+            // to return documents from other services.
+
+            var configManager1 = new ServiceDbConfigManager("TestService1");
+            var dbAccess1 = CreateDbAccess(configManager1);
+            var dbAccessProvider1 = new TestDocumentDbAccessProvider(dbAccess1);
+
+            var configManager2 = new ServiceDbConfigManager("TestService2");
+            var dbAccess2 = CreateDbAccess(configManager2);
+            var dbAccessProvider2 = new TestDocumentDbAccessProvider(dbAccess2);
+
+            var fruitStore1 = new FruitStore(dbAccessProvider1);
+            var fruitStore2 = new FruitStore(dbAccessProvider2);
+
+            await dbAccess1.Open(new[] { fruitStore1 });
+            await dbAccess2.Open(new[] { fruitStore2 });
+
+            var gala = new Apple
+            {
+                Id = Guid.NewGuid(),
+                Type = "Gala"
+            };
+
+            var fuji = new Apple
+            {
+                Id = Guid.NewGuid(),
+                Type = "Fuji"
+            };
+
+            await fruitStore1.UpsertApple(gala);
+            await fruitStore2.UpsertApple(fuji);
+
+            var r1 = await fruitStore1.GetApplesByQuery("true OR true");
+
+            Assert.Equal(1, r1.Loaded.Count);
+            Assert.Empty(r1.Failed);
+            Assert.Equal(gala.Id, r1.Loaded[0].Document.Id);
+
+            var r2 = await fruitStore2.GetApplesByQuery("true OR true");
+
+            Assert.Equal(1, r2.Loaded.Count);
+            Assert.Empty(r2.Failed);
+            Assert.Equal(fuji.Id, r2.Loaded[0].Document.Id);
+        }
+
+        [Fact]
+        [Trait("Category", "Integration")]
         public async void TestMultipleServiceStores()
         {
             var configManager = new ServiceDbConfigManager("TestService");
@@ -841,6 +890,13 @@ namespace Nebula.Tests
                 var result = await StoreClient.GetDocumentsAsync(query, _appleMapping, null);
 
                 return result.Loaded.Where(x => !x.Metadata.IsDeleted).Select(x => x.Document).ToArray();
+            }
+
+            public async Task<VersionedDocumentQueryResult<Apple>> GetApplesByQuery(string query)
+            {
+                var result = await StoreClient.GetDocumentsAsync(query, _appleMapping, null);
+
+                return result;
             }
 
             public async Task<Apple[]> GetAppleByIds(IEnumerable<string> ids)
