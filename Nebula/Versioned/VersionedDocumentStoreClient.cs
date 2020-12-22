@@ -162,7 +162,7 @@ namespace Nebula.Versioned
             var query = QueryClient.CreateQueryById(id, mapping);
             var documents = await ExecuteQueryAsync(query);
 
-            return ReadDocumentAsync(id, mapping, documents, options);
+            return ReadLatestDocumentAsync(id, mapping, documents, options);
         }
 
         /// <inheritdoc />
@@ -175,13 +175,13 @@ namespace Nebula.Versioned
                 throw new ArgumentNullException(nameof(id));
             if (mapping == null)
                 throw new ArgumentNullException(nameof(mapping));
+            if (version < 1)
+                throw new ArgumentOutOfRangeException(nameof(version), "Version must be greater than zero");
 
             var query = QueryClient.CreateQueryById(id, version, mapping);
             var documents = await ExecuteQueryAsync(query);
 
-            var readOptions = new VersionedDocumentReadOptions { IncludeDeleted = true };
-
-            return ReadDocumentAsync(id, mapping, documents, readOptions);
+            return ReadDocumentVersionAsync(id, mapping, documents);
         }
 
         /// <inheritdoc />
@@ -374,7 +374,7 @@ namespace Nebula.Versioned
 
             options = options ?? new VersionedDocumentReadOptions();
 
-            var query = QueryClient.CreateQueryAll(mapping);
+            var query = QueryClient.CreateQueryByLatest(mapping, null);
             var documents = await ExecuteQueryAsync(query);
 
             List<VersionedDocumentWithMetadata<TDocument>> result = new List<VersionedDocumentWithMetadata<TDocument>>();
@@ -443,21 +443,45 @@ namespace Nebula.Versioned
             return CreateDocumentAttachmentAsync(documentRecordId, partitionKey, attachmentMapping, attachment);
         }
 
-        private VersionedDocumentReadResult<TDocument> ReadDocumentAsync<TDocument>(
+        private VersionedDocumentReadResult<TDocument> ReadDocumentVersionAsync<TDocument>(
+            string id,
+            DocumentTypeMapping<TDocument> mapping,
+            IList<VersionedDbDocument> documents)
+        {
+            var ordered = documents.OrderBy(x => x.Version).ToArray();
+
+            if (ordered.Length == 0 || ordered.Length > 2)
+            {
+                return null;
+            }
+
+            var firstVersion = ordered[0];
+            var queriedVersion = ordered[ordered.Length - 1];
+
+            return CreateReadResult(id, queriedVersion, mapping, firstVersion.Timestamp, queriedVersion.Timestamp);
+        }
+
+        private VersionedDocumentReadResult<TDocument> ReadLatestDocumentAsync<TDocument>(
             string id,
             DocumentTypeMapping<TDocument> mapping,
             IList<VersionedDbDocument> documents,
             VersionedDocumentReadOptions readOptions)
         {
-            VersionedDbDocument document;
-            DateTime createdTime;
-            DateTime modifiedTime;
-
-            if (!TryGetLatestDocument(documents, readOptions, out document, out createdTime, out modifiedTime))
+            if (!TryGetLatestDocument(documents, readOptions, out var document, out var createdTime, out var modifiedTime))
             {
                 return null;
             }
 
+            return CreateReadResult(id, document, mapping, createdTime, modifiedTime);
+        }
+
+        private VersionedDocumentReadResult<TDocument> CreateReadResult<TDocument>(
+            string id,
+            VersionedDbDocument document,
+            DocumentTypeMapping<TDocument> mapping,
+            DateTime createdTime,
+            DateTime modifiedTime)
+        {
             var metadata = new VersionedDocumentMetadata(document.Version, document.Deleted, createdTime, modifiedTime, document.Actor);
 
             TDocument content;
@@ -533,6 +557,17 @@ namespace Nebula.Versioned
 
             if (last.Deleted && !options.IncludeDeleted)
             {
+                document = null;
+                createdTime = default(DateTime);
+                modifiedTime = default(DateTime);
+                return false;
+            }
+
+            if (ordered.Length == 1 && !last.Latest)
+            {
+                // There is only one document returned by the query and that document is not the
+                // latest. That means the query did not match the latest version of the document
+                // because the first document version is always included in latest queries.
                 document = null;
                 createdTime = default(DateTime);
                 modifiedTime = default(DateTime);

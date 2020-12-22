@@ -71,6 +71,7 @@ namespace Nebula.Versioned
         /// <param name="options">The read options.</param>
         /// <returns>A task that represents the asynchronous get operation.</returns>
         /// <remarks>
+        /// <para>The query is only applied against the latest version of documents.</para>
         /// <para>The latest version of the documents are included in the result. If a document is deleted then
         /// the latest version will be the deleted document.</para>
         /// </remarks>
@@ -88,6 +89,7 @@ namespace Nebula.Versioned
         /// <param name="mapping">The document type mapping.</param>
         /// <returns>A task that represents the asynchronous get operation.</returns>
         /// <remarks>
+        /// <para>The query is only applied against the latest version of documents.</para>
         /// <para>The latest version of the documents are included in the result. If a document is deleted then
         /// the latest version will be the deleted document.</para>
         /// <para>This overload is preferred when building queries based on user sourced values. Db parameters
@@ -108,6 +110,7 @@ namespace Nebula.Versioned
         /// <param name="options">The read options.</param>
         /// <returns>A task that represents the asynchronous get operation.</returns>
         /// <remarks>
+        /// <para>The query is only applied against the latest version of documents.</para>
         /// <para>The latest version of the documents are included in the result. If a document is deleted then
         /// the latest version will be the deleted document.</para>
         /// <para>This overload is preferred when building queries based on user sourced values. Db parameters
@@ -127,6 +130,7 @@ namespace Nebula.Versioned
         /// <param name="options">The read options.</param>
         /// <returns>A task that represents the asynchronous get operation.</returns>
         /// <remarks>
+        /// <para>The query is only applied against the latest version of documents.</para>
         /// <para>The latest version of the documents are included in the result. If a document is deleted then
         /// the latest version will be the deleted document.</para>
         /// </remarks>
