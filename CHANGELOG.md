@@ -1,3 +1,9 @@
+# [2.2.1] (2020-12-22)
+
+### Changes
+
+* Latest document queries also match against the first version of a document ([#39](https://github.com/cloud-maker-ai/Nebula/issues/39)) ([5ddd0a0](https://github.com/cloud-maker-ai/Nebula/commit/a9d558c))
+
 # [2.2.0] (2020-01-28)
 
 ### Changes
